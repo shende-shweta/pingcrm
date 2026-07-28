@@ -4,7 +4,8 @@ A demo CRM built with **Laravel 11** and **Inertia.js**, extended with an **ente
 
 The original Inertia Ping CRM screenshot still applies to the core CRM UI (`/`, contacts, organizations, etc.).
 
-![](https://raw.githubusercontent.com/inertiajs/pingcrm/master/screenshot.png)
+<img width="1852" height="1089" alt="image" src="https://github.com/user-attachments/assets/d5186384-7ee7-429e-adbf-4414d5f994ed" />
+
 
 ## Stack
 
