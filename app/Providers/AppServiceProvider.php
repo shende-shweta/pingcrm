@@ -18,7 +18,7 @@ class AppServiceProvider extends ServiceProvider
      *
      * @var string
      */
-    public const HOME = '/';
+    public const HOME = '/ivr';
 
     /**
      * Register any application services.

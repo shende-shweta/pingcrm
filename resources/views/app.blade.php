@@ -11,7 +11,8 @@
     {{-- Ping CRM --}}
     <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=String.prototype.startsWith" defer></script>
 
-    @vite('resources/js/app.js')
+    @viteReactRefresh
+    @vite('resources/js/app.tsx')
     @inertiaHead
 </head>
 <body class="font-sans leading-none text-gray-700 antialiased">

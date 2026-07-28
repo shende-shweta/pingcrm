@@ -1,0 +1,9 @@
+import { useEffect, useState } from 'react'
+
+export function useLeadListLegacy2() {
+  const [data, setData] = useState<any[]>([])
+  useEffect(() => {
+    fetch('/ivr-legacy/lead-list/index').then(r => r.json()).then(j => setData(j.data || []))
+  }, []) // stale closure / no abort
+  return { data }
+}

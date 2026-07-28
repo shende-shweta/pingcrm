@@ -1,8 +1,9 @@
 <?php
 
+use App\Http\Controllers\Ivr\IvrHubController;
+use App\Http\Controllers\Ivr\IvrModuleController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\ContactsController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ImagesController;
 use App\Http\Controllers\OrganizationsController;
 use App\Http\Controllers\ReportsController;
@@ -33,11 +34,23 @@ Route::post('login', [AuthenticatedSessionController::class, 'store'])
 Route::delete('logout', [AuthenticatedSessionController::class, 'destroy'])
     ->name('logout');
 
-// Dashboard
+// Home → IVR hub (CRM dashboard removed from nav)
 
-Route::get('/', [DashboardController::class, 'index'])
+Route::redirect('/', '/ivr')
     ->name('dashboard')
     ->middleware('auth');
+
+// IVR Enterprise (legacy monolith surface)
+Route::middleware('auth')->prefix('ivr')->group(function () {
+    Route::get('/', [IvrHubController::class, 'index'])->name('ivr.hub');
+    Route::get('/data', [IvrHubController::class, 'data'])->name('ivr.data');
+    Route::get('/modules', [IvrModuleController::class, 'modulesIndex'])->name('ivr.modules');
+
+    $moduleSlugs = implode('|', array_keys(IvrModuleController::SLUG_MAP));
+    Route::get('/{moduleSlug}', [IvrModuleController::class, 'show'])
+        ->where('moduleSlug', $moduleSlugs)
+        ->name('ivr.module');
+});
 
 // Users
 
@@ -133,6 +146,10 @@ Route::put('contacts/{contact}/restore', [ContactsController::class, 'restore'])
 
 Route::get('reports', [ReportsController::class, 'index'])
     ->name('reports')
+    ->middleware('auth');
+
+Route::get('reports/download', [ReportsController::class, 'download'])
+    ->name('reports.download')
     ->middleware('auth');
 
 // Images

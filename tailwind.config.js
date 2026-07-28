@@ -1,7 +1,7 @@
 import defaultTheme from 'tailwindcss/defaultTheme'
 
 export default {
-  content: ['./resources/**/*.{js,vue,blade.php}'],
+  content: ['./resources/**/*.{js,ts,tsx,blade.php}'],
   theme: {
     extend: {
       colors: {
