@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** Discovery-05-Aug-0012 · **Generated:** 05/08/2026, 16:07:12
+**Project:** Discovery-05-Aug-0012 · **Generated:** 05/08/2026, 16:15:10
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 4 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 5 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -14,6 +14,7 @@
 | 2 | Code Quality & Complexity Analysis | <span class="rating rating-high-risk">High Risk</span> | 67 / 100 — High Risk |
 | 3 | Frontend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 | 4 | Backend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 5 | Testing & Quality Assurance Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
 
@@ -250,3 +251,44 @@
 - **Secrets moved to environment variables** prevent credential leakage through repository access and enable per-environment credential rotation.
 - **Redis/Memcached caching** reduces database load on dashboard queries by 80-90% and removes the 540 artificial `sleep()` delays.
 - **OpenAPI specification and contract tests** prevent silent breaking changes to the 80+ API endpoints and enable automated consumer compatibility verification.
+
+---
+
+## 5. Testing & Quality Assurance Analysis
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Testing &amp; Quality Assurance</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Five of six standard hotspots (H1, H2, H3, H4, H6) rated High Risk; the entire IVR enterprise module, authentication, user management, reports, and all 904 frontend components ship untested.</div></div>
+
+> **Executive Summary**
+>
+> The PingCRM codebase has critically low test coverage across both its Laravel backend and React/TypeScript frontend. Only 3 PHP test files (9 test methods) exist against 141 backend source files, covering only the Contacts and Organizations index/search/filter flows. The entire authentication system, user management, IVR enterprise module (83 controllers, 12 "GodService" classes, 12 repositories), reports with complex DB aggregation queries, and multi-tenant scoping logic ship with zero tests. On the frontend, 904 TypeScript/React source files have exactly one test file — a trivial smoke test asserting `expect(true).toBe(true)` with no component, integration, or E2E tests. CI runs PHPUnit on push/PR via GitHub Actions but does not run Vitest, and the test workflow is not configured as a required check for merging. Estimated overall line coverage is below 10%.
+
+## 5.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Untested Critical Logic | Critical modules with zero tests | 0 | 1–3 | >3 | 7+ modules | <span class="rating rating-high-risk">High Risk</span> |
+| H2 | Low Test Coverage | Overall coverage % | >80% | 50–80% | <50% | ~8% (estimated) | <span class="rating rating-high-risk">High Risk</span> |
+| H3 | Missing Integration Tests | Boundaries covered % | >70% | 30–70% | <30% | ~5% (estimated) | <span class="rating rating-high-risk">High Risk</span> |
+| H4 | Missing Contract Tests | APIs with contract tests % | >80% | 40–80% | <40% | 0% | <span class="rating rating-high-risk">High Risk</span> |
+| H5 | Flaky / Skipped Tests | Skipped/flaky test count | 0 | 1–5 | >5 | 0 | <span class="rating rating-good">Good</span> |
+| H6 | No CI Test Gate | Tests enforced in CI | Required gate | Runs, not required | No CI test run | Runs (backend only), not required; frontend not run | <span class="rating rating-high-risk">High Risk</span> |
+| H7 | Assertion-Free Tests (additional) | Placeholder tests with no real assertions | 0 | 1–2 | >2 | 2 | <span class="rating rating-moderate">Moderate</span> |
+
+## 5.4 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H1 — Untested Critical Logic | Generate PHPUnit feature tests for Auth, Users, Reports, IVR Hub, and IvrAccountContext; add Vitest component tests for Login page and shared form components | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H2 — Low Test Coverage | Enable coverage tooling (pcov), set 50% backend / 30% frontend coverage milestones, test all controller CRUD actions | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H3 — Missing Integration Tests | Add integration tests for IvrHubController (7 DB queries), ReportsController (5 queries + CSV), GodService round-trips, and IVR legacy API chain | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H4 — Missing Contract Tests | Add JSON structure assertions for IVR Hub data API, CSV schema tests for reports download, and Inertia prop shape tests | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H6 — No CI Test Gate | Add `npm run test` step to tests.yml, enable coverage reporting, configure branch protection requiring test workflow to pass | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| H7 — Assertion-Free Tests | Replace ExampleTest.php and smoke.test.ts placeholder assertions with real application tests | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+
+## 5.5 Expected Outcomes
+
+- **Critical authentication and user management paths are protected** before any refactoring or feature development, preventing unauthorized access or privilege escalation regressions.
+- **Multi-tenant data isolation (IvrAccountContext) is verified** by integration tests, ensuring tenant scoping logic cannot silently leak data across accounts.
+- **CI catches regressions automatically on every PR** for both backend (PHPUnit) and frontend (Vitest), with branch protection enforcing the gate before merge.
+- **API contract tests prevent silent breaking changes** to the IVR Hub JSON endpoint and report CSV downloads, protecting the frontend dashboard from data-shape regressions.
+- **Coverage visibility enables informed decisions** about refactoring safety — teams can see which modules remain at risk before starting extraction or modernization work.
