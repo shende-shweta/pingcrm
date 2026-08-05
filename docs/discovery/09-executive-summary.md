@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** Discovery-05-Aug-0012 · **Generated:** 05/08/2026, 16:15:10
+**Project:** Discovery-05-Aug-0012 · **Generated:** 05/08/2026, 16:26:07
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 5 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 6 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -15,6 +15,7 @@
 | 3 | Frontend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 | 4 | Backend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 | 5 | Testing & Quality Assurance Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 6 | Security Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
 
@@ -292,3 +293,45 @@
 - **CI catches regressions automatically on every PR** for both backend (PHPUnit) and frontend (Vitest), with branch protection enforcing the gate before merge.
 - **API contract tests prevent silent breaking changes** to the IVR Hub JSON endpoint and report CSV downloads, protecting the frontend dashboard from data-shape regressions.
 - **Coverage visibility enables informed decisions** about refactoring safety — teams can see which modules remain at risk before starting extraction or modernization work.
+
+---
+
+## 6. Security Analysis
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Security</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by pervasive SQL injection (480+ raw queries), mass extract() usage (4,940 instances), hardcoded secrets in source, and zero authorization policies — multiple Critical/High unresolved vulnerabilities.</div></div>
+
+> **Executive Summary**
+>
+> The codebase contains a substantial legacy IVR subsystem with **critical** security vulnerabilities. Over 80 IVR controllers and 12 legacy repository files construct raw SQL queries by string-concatenating user input, creating pervasive SQL injection vectors. The legacy service layer uses `extract()` on unsanitized request payloads across 92+ call sites, enabling variable injection and potential remote code execution. Hard-coded API keys and plaintext credentials are committed in source code across 12 God-service files and in `config/ivr_legacy.php` (including a Salesforce client secret and password). The frontend has a lower-severity XSS risk via `dangerouslySetInnerHTML` in the pagination component and ships a default credential (`password: 'secret'`) in the login page source. No authorization policies exist — all access control relies solely on authentication middleware with no ownership checks, creating IDOR exposure across all CRUD routes. No Content-Security-Policy, HSTS, or X-Frame-Options headers are configured, and no SAST or dependency-vulnerability scanning is present in CI. Both backend (PHP/Laravel) and frontend (React/TypeScript SPA) layers were covered in this review.
+
+## 6.1 Security Benchmark Ratings
+
+| # | Security KPI | Target | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Critical Vulnerabilities | 0 | 0 | 1 | >1 | 4 | <span class="rating rating-high-risk">High Risk</span> |
+| H2 | High Vulnerabilities | 0 | <5 | 5–10 | >10 | 6 | <span class="rating rating-moderate">Moderate</span> |
+| H3 | Medium Vulnerabilities | low | <20 | 20–50 | >50 | 4 | <span class="rating rating-good">Good</span> |
+| H4 | Vulnerability Density | <0.5/KLOC | <0.5 | 0.5–1.0 | >1.0 | 0.08/KLOC (14 findings / 180 KLOC) | <span class="rating rating-good">Good</span> |
+| H5 | OWASP Top 10 Compliance | >95% | >95% | 80–95% | <80% | 20% clean (2/10) | <span class="rating rating-high-risk">High Risk</span> |
+| H6 | Critical/High Vulnerable Deps | 0 | 0 | 1 | >1 | 0 (roave/security-advisories blocks known-CVE deps) | <span class="rating rating-good">Good</span> |
+| H7 | Outdated Dependencies | <10% | <10% | 10–25% | >25% | ~10% (react-router-dom 5.x is EOL; lodash 4.x aging) | <span class="rating rating-moderate">Moderate</span> |
+| H8 | End-of-Life Dependencies | 0 | 0 | 1–5 | >5 | 1 (react-router-dom v5) | <span class="rating rating-moderate">Moderate</span> |
+
+## 6.5 Actions Required
+
+| Finding | Action | Rating | Priority |
+|---|---|---|---|
+| SQL Injection (480+ raw queries) | Replace all `DB::select` string concatenation with parameterized queries; migrate legacy repositories to Eloquent | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| Unsafe `extract()` (4,940 instances) | Remove all `extract($payload)` calls; access values explicitly; ban via PHPStan | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| Hardcoded Secrets (12 services + config) | Move to `.env`; rotate all exposed keys/passwords; add pre-commit secret scanner | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| Missing Authorization / IDOR | Create Policy classes for all models; add `authorize()` checks; fix tenant scoping | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| Auth Bypass for Internal IPs | Remove `bypass_auth_for_internal_ips`; set session lifetime to 120 min | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| Missing Security Headers | Add middleware for CSP, HSTS, X-Frame-Options, X-Content-Type-Options | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| Unprotected Image Route | Add auth middleware; validate path; enable Glide sign-key | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| No SAST/Dependency Scanning in CI | Add `composer audit`, `npm audit`, SAST scanner, and `gitleaks` to CI | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| SQL Debug Mode Enabled | Set `allow_sql_debug=false`; ensure `APP_DEBUG=false` in production | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| Mass Assignment via `DB::table` | Replace `DB::table()->insertGetId()` with Eloquent; define `$fillable` | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| XSS via `dangerouslySetInnerHTML` | Replace with safe text rendering or sanitize with DOMPurify | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| Default Credentials in Frontend | Remove hardcoded `johndoe@example.com` / `secret` from Login.tsx | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| Weak Password Validation | Add `Password::min(8)->mixedCase()->numbers()` rules | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| EOL `react-router-dom` v5 | Upgrade to React Router v6+ | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
