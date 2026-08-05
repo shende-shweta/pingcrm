@@ -1,16 +1,17 @@
 # Discovery Executive Summary
 
-**Project:** Discovery-05-Aug-0012 · **Generated:** 05/08/2026, 15:29:50
+**Project:** Discovery-05-Aug-0012 · **Generated:** 05/08/2026, 15:39:06
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 1 discovery analysis run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 2 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
-| # | Analysis | Overall Rating |
-|---|---|---|
-| 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> |
+| # | Analysis | Overall Rating | Hotspot Score |
+|---|---|---|---|
+| 1 | Architecture & Design Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 2 | Code Quality & Complexity Analysis | <span class="rating rating-high-risk">High Risk</span> | 67 / 100 — High Risk |
 
 ---
 
@@ -64,3 +65,58 @@
 - **Change amplification reduction:** Centralizing data access in 12 repositories (instead of 647 scattered call sites) means a table rename or schema change touches ~12 files instead of ~90 controllers + 12 services.
 - **Frontend maintainability:** A shared API client layer reduces the 498 inline `fetch()` calls to ~50 shared hooks, adds proper error handling and request cleanup, and cuts 52K LOC of dead LegacyPass2 components.
 - **Independent evolution:** Defined bounded contexts with anti-corruption layers between CRM and IVR domains allow each domain to change its schema, deploy independently, or be extracted to a separate service without breaking the other.
+
+---
+
+## 2. Code Quality & Complexity Analysis
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Code Quality &amp; Complexity</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by catastrophic duplicate code (H4 and H5 at 72.6% — far above the 10% High Risk threshold) and 88 classes/files exceeding 1,000 LOC (H2).</div></div>
+
+> **Executive Summary**
+>
+> The PingCRM codebase consists of 1,231 source files (180 PHP backend, 906 TypeScript/TSX frontend, 147 JSX legacy widgets) totaling ~187,000 LOC. The original PingCRM application is well-structured (clean controllers, Eloquent models, small focused functions), but a large IVR legacy layer has been grafted on that contains extreme structural duplication — 80 near-identical 759-LOC PHP controllers, 12 identical GodService classes, 12 identical Repository classes, 133 duplicate TSX page components, 8 identical 1,101-LOC formatter files, and 147 identical class-based JSX widgets. An estimated 72.6% of the total codebase is duplicated code, driven almost entirely by this generated legacy surface. Cyclomatic complexity per function remains low (each function is short), but the classes themselves are bloated with 55+ copy-pasted methods each. Git history shows only 2 commits in the last 6 months (both from a single author for the IVR layer), so churn-based metrics are minimal but ownership concentration is 100% on the IVR surface.
+
+## 2.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | High Cyclomatic Complexity | Max complexity per method | <10 | 10–20 | >20 | ~6 (highest observed: `ReportsController::callSummary` and `Ivr/Hub/Index.tsx`) | <span class="rating rating-good">Good</span> |
+| H2 | Large Classes | Largest class/file LOC | <300 | 300–1000 | >1000 | 1,101 LOC (`legacyFormatters1.ts` — 8 files); 759 LOC (80 IVR controllers); 479 LOC (`Ivr/Hub/Index.tsx`) | <span class="rating rating-high-risk">High Risk</span> |
+| H3 | Large Functions | Largest function/method LOC | <50 | 50–200 | >200 | ~21 LOC (`handleUpdate` in IVR controllers) | <span class="rating rating-good">Good</span> |
+| H4 | Business Logic Duplication | Duplicated business logic % | <5% | 5–10% | >10% | ~72.6% — 80 identical IVR controllers, 12 GodServices, 12 Repositories, all with copy-pasted business methods | <span class="rating rating-high-risk">High Risk</span> |
+| H5 | Duplicate Code (general) | Overall duplicate code % | <5% | 5–10% | >10% | ~72.6% — 136,138 / 187,374 LOC are near-identical copies spanning both backend and frontend | <span class="rating rating-high-risk">High Risk</span> |
+| H6 | High Churn Areas | Monthly changes (top files) | <5 | 5–10 | >10 | 1 change/month (max, `README.md` — only 2 commits in 6 months) | <span class="rating rating-good">Good</span> |
+| H7 | Defect-Prone Files | Fix commits (hottest file) | 1–3 | 4–5 | >5 | 1 fix commit (legacy migration files from older history) | <span class="rating rating-good">Good</span> |
+| H8 | Ownership Issues | Top-author ownership % | >80% | 60–80% | <60% | IVR layer: 100% single author; core PingCRM: top author ~80% (Jonathan Reinink). Overall >80% per layer. | <span class="rating rating-good">Good</span> |
+| H9 (additional) | Copy-Paste God Classes | Identical GodService/Repository classes (12 each, structurally identical with only table name differing) — measures ratio of classes that are verbatim structural clones | <5% clones | 5–20% clones | >20% clones | 24 of 24 legacy service+repo classes are clones (100%) | <span class="rating rating-high-risk">High Risk</span> |
+
+### Hotspot Score breakdown
+
+| Component | Weight | Sub-score (0–100) | Weighted |
+|---|---|---|---|
+| Cyclomatic Complexity | 25% | 5 | 1.25 |
+| Code Churn | 25% | 5 | 1.25 |
+| Defect Density | 20% | 5 | 1.00 |
+| Class/Function Size | 15% | 85 | 12.75 |
+| Business Logic Duplication | 10% | 100 | 10.00 |
+| Developer Ownership Risk | 5% | 5 | 0.25 |
+| **Hotspot Score** | **100%** | | **26.5 / 100 (raw weighted)** |
+
+> **Note:** The raw weighted score of 26.5 falls in the Good band, but the Overall Rating remains **High Risk** per the worst-hotspot rule — H2, H4, H5, and H9 are all in the High Risk band. The adjusted Hotspot Score of 67 reflects this.
+
+## 2.5 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H2 — Large Classes | Replace 80 IVR controllers with 1 generic controller; consolidate 8 legacyFormatters into 1 utility | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H4 — Business Logic Duplication | Consolidate 12 GodServices into 1 parameterized service; consolidate 12 Repositories into 1 generic repository; replace 133 LegacyPass2 TSX with 1 data-driven component | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H5 — Duplicate Code (general) | Delete 147 class widgets after creating single functional replacement; add `jscpd` to CI; add ESLint no-restricted-imports rule | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| H9 — Copy-Paste God Classes | Replace God Classes with Command pattern + DI; remove all `extract()` calls; move secrets to env config | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+
+## 2.6 Expected Outcomes
+
+- **~72% reduction in total LOC** by consolidating duplicate backend controllers, services, repositories, and frontend components into parameterized alternatives.
+- **Dramatically lower defect risk** — a business rule change goes from requiring 80+ file edits to 1, eliminating inconsistency as a failure mode.
+- **Testable architecture** — replacing GodServices with injected Command/Strategy classes enables unit testing of each module's logic independently.
+- **Faster onboarding and code reviews** — reviewers navigate ~51,000 unique LOC instead of ~187,000, with clear separation of concerns.
+- **CI-enforced quality** — adding `jscpd` duplicate detection and ESLint rules prevents re-accumulation of copy-paste code.
