@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** Discovery-05-Aug-0012 · **Generated:** 05/08/2026, 16:26:07
+**Project:** Discovery-05-Aug-0012 · **Generated:** 05/08/2026, 16:38:51
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 6 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 7 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -16,6 +16,7 @@
 | 4 | Backend Modernization Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 | 5 | Testing & Quality Assurance Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 | 6 | Security Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
+| 7 | Performance & Sustainability Analysis | <span class="rating rating-high-risk">High Risk</span> | — |
 
 ---
 
@@ -335,3 +336,51 @@
 | Default Credentials in Frontend | Remove hardcoded `johndoe@example.com` / `secret` from Login.tsx | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
 | Weak Password Validation | Add `Password::min(8)->mixedCase()->numbers()` rules | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
 | EOL `react-router-dom` v5 | Upgrade to React Router v6+ | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+
+---
+
+## 7. Performance & Sustainability Analysis
+
+<div class="overall-rating overall-rating--high-risk"><div class="overall-rating-label">Overall Codebase Rating — Performance &amp; Sustainability</div><div class="overall-rating-value">High Risk</div><div class="overall-rating-note">Driven by P3 API Performance (14 serial dashboard queries + 540 blocking sleep() calls), P4 Memory Efficiency (unbounded result sets), P5 CPU Efficiency (540 synchronous sleep blocks), and P12 Sustainability (massive dead code and wasteful blocking).</div></div>
+
+> **Executive Summary**
+>
+> PingCRM is a Laravel 11 + Inertia/React demo application extended with a large legacy IVR module layer. The most severe performance issue is the **540 synchronous `sleep(1)` calls** across 12 "GodService" classes in the legacy IVR layer, each blocking the PHP-FPM worker for a full second per invocation — under any meaningful concurrency this exhausts the worker pool and stalls the entire application. The **IVR Hub dashboard controller fires 14 separate database queries per page load** without any aggregation or caching, creating a latency-multiplied serial request chain. The `UsersController` loads all users via an unpaginated `->get()`, and the CSV export in `ReportsController` loads unbounded result sets into memory. On the frontend, **124 legacy React hooks** each fire an uncancelled `fetch()` on mount with no abort controller, risking request pile-ups on fast navigation. The codebase carries ~940 dead duplicate functions (5 legacy PHP helpers + 8 TypeScript formatter files) that inflate autoload, bundle size, and memory footprint. No infrastructure config (Dockerfile, Terraform, k8s) exists in the repo, so resource utilization and sustainability cannot be assessed from infra — only code-level efficiency.
+
+## 7.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class="rating rating-good">Good</span> | <span class="rating rating-moderate">Moderate</span> | <span class="rating rating-high-risk">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| P1 | Algorithm Efficiency | High-complexity algorithm sites | 0 | 1–5 | >5 | 0 | <span class="rating rating-good">Good</span> |
+| P2 | Database Performance | Deferred → Backend Modernization (H14/H10) | — | — | — | See Backend Modernization | — (deferred) |
+| P3 | API Performance | Response-latency hotspots | 0 | 1–5 | >5 | 8 | <span class="rating rating-high-risk">High Risk</span> |
+| P4 | Memory Efficiency | High-memory sites | 0 | 1–3 | >3 | 4 | <span class="rating rating-high-risk">High Risk</span> |
+| P5 | CPU Efficiency | CPU-intensive operations | 0 | 1–5 | >5 | 540 | <span class="rating rating-high-risk">High Risk</span> |
+| P6 | Concurrency | Parallelizable work + pool sizing | 0 | 1–5 | >5 | 2 | <span class="rating rating-moderate">Moderate</span> |
+| P7 | Caching | Deferred → Backend Modernization H14 / Frontend Modernization H11 | — | — | — | See those reports | — (deferred) |
+| P8 | Resource Utilization | Over-provisioned / idle resources | 0 | 1–3 | >3 | N/A | <span class="rating rating-good">Good</span> |
+| P9 | Network Efficiency | Excessive-traffic sites | 0 | 1–5 | >5 | 124 | <span class="rating rating-high-risk">High Risk</span> |
+| P10 | Build Efficiency | Build/test pipeline efficiency | efficient | partial | slow / no caching | partial | <span class="rating rating-moderate">Moderate</span> |
+| P11 | Logging Efficiency | Excessive-logging sites | 0 | 1–10 | >10 | 0 | <span class="rating rating-good">Good</span> |
+| P12 | Sustainability | Resource-optimization posture | optimized | partial | wasteful | wasteful | <span class="rating rating-high-risk">High Risk</span> |
+
+## 7.5 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| P3 — API Performance | Remove 540 `sleep(1)` calls from GodServices; consolidate 14 serial dashboard queries into parallel execution; add LIMIT to CSV export | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| P5 — CPU Efficiency | Delete all `sleep(1)` sites; remove 12 GodService files if legacy workflows are unused; dispatch to queue if async sync is needed | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-critical">Critical</span> |
+| P4 — Memory Efficiency | Paginate `UsersController::index()`; replace `->get()` with `->cursor()` in CSV exports; remove or bound `$sharedRuntimeCache` | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| P9 — Network Efficiency | Add `AbortController` to 124 legacy hooks; consolidate duplicate hooks; remove 8 dead formatter files | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| P12 — Sustainability | Remove ~2,700 dead duplicate functions; add resource limits to deploy config; consider queue workers for background processing | <span class="rating rating-high-risk">High Risk</span> | <span class="sev sev-high">High</span> |
+| P6 — Concurrency | Parallelize 7 independent dashboard queries with `Concurrency::run()`; parallelize 4 report queries | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+| P10 — Build Efficiency | Add npm caching to CI; skip asset build for PHP-only test runs; consider workflow splitting | <span class="rating rating-moderate">Moderate</span> | <span class="sev sev-medium">Medium</span> |
+
+## 7.6 Expected Outcomes
+
+- **Removing 540 `sleep(1)` calls** eliminates the single largest performance bottleneck, reducing legacy endpoint response times from 1000ms+ to <50ms and freeing PHP-FPM workers for concurrent requests.
+- **Parallelizing dashboard queries** (7 in IvrHubController, 4 in ReportsController) cuts dashboard page load time from ~70ms serial to ~15ms parallel under typical query latencies.
+- **Adding pagination to UsersController and cursors to CSV exports** prevents OOM kills under large datasets, keeping PHP memory usage within safe bounds.
+- **Adding AbortController to 124 legacy hooks** stops request pile-ups on fast navigation, reducing both browser connection saturation and server worker contention.
+- **Deleting ~2,700 dead duplicate functions** reduces PHP autoload overhead, JavaScript bundle size, and CI build time, while improving developer onboarding speed and code maintainability.
+- **Adding npm caching and conditional asset builds to CI** saves ~2-3 minutes per CI run, reducing feedback loop time and CI compute/energy costs.
