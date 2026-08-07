@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** discovery-pingCRM-7Aug · **Generated:** 07/08/2026, 17:16:12
+**Project:** discovery-pingCRM-7Aug · **Generated:** 07/08/2026, 17:25:35
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 2 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 3 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -12,6 +12,7 @@
 |---|---|---|
 | 1 | Architecture & Design Analysis | — |
 | 2 | Code Quality & Complexity Analysis | — |
+| 3 | Frontend Modernization Analysis | — |
 
 ---
 
@@ -126,3 +127,68 @@
 ---
 
 **Report saved to** `docs/discovery/02-code-quality-complexity.md` (both frontend and backend layers covered). The orchestration UI will convert it to the matching PDF.","ttft_ms":4694,"ttft_stream_ms":3705,"time_to_request_ms":125,"type":"result","duration_ms":452890,"uuid":"7c0f0161-e69f-4426-b88a-b19daa69a597"}
+
+---
+
+## 3. Frontend Modernization Analysis
+
+> **Executive Summary**
+>
+> This is the React/Inertia.js single-page frontend of a PingCRM-derived CRM that has been heavily extended with a synthetic \"IVR\" telephony surface. The core PingCRM slice (Pages/Contacts, Organizations, Users, Auth, Reports and the 14-component `Shared/` library) is clean, idiomatic React 19 with TypeScript strict mode on. The IVR extension, however, is a large modernization liability: 916 component files, of which ~517 are near-identical duplicates (133 `LegacyPass2_*` page clones, 229 `*Monolith*` components, 147 class-based `.jsx` widgets, 8 byte-identical formatter utilities). The most severe findings are the total absence of an API/service layer — all 874 `fetch()` calls are made inline inside components against an **unauthenticated** `ivr-legacy/*` route group — plus 375 files that start a 5-second `setInterval` poll with no cleanup (a systemic memory/network leak), 13,701 inline-`style` occurrences with zero design tokens, and a High-severity lodash CVE in a dependency that the frontend does not even import. TypeScript strict is enabled and ESLint is configured, but ESLint is not run in CI, and there are no error boundaries anywhere in the tree.
+
+### §3.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | UI Component Duplication | Duplicate components % | <5% | 5–10% | >10% | ~517 / 916 ≈ **56%** near-identical | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H2 | Legacy Class-Based Components | Modern component adoption % | >90% | 70–90% | <70% | **84.0%** (147 class `.jsx`) | <span class=\"rating rating-moderate\">Moderate</span> |
+| H3 | Massive Components | Largest component LOC | <200 | 200–500 | >500 | **479 LOC** (134 files >300) | <span class=\"rating rating-moderate\">Moderate</span> |
+| H4 | Global State Dependencies | Components reading global state % | <30% | 30–60% | >60% | **~0%** (no global store) | <span class=\"rating rating-good\">Good</span> |
+| H5 | Complex State Management | Max prop-drilling depth | <3 | 3–5 | >5 | **≤2** (Inertia page props) | <span class=\"rating rating-good\">Good</span> |
+| H6 | Weak Frontend Architecture | Feature modules with clean boundaries % | >80% | 50–80% | <50% | **<20%** (API+UI+logic mixed) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H7 | Missing Component Inventory | Shared component % of total | >30% | 15–30% | <15% | **1.5%** (14 / 916, no Storybook) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H8 | No Design System | Inline-style / magic-value occurrences | 0–5 | 6–20 | >20 | **13,701** inline styles, 0 tokens | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H9 | Routing Structure Weakness | Protected routes with guards % | 100% | 80–99% | <80% | **100%** page routes guarded | <span class=\"rating rating-good\">Good</span> |
+| H10 | No API Integration Layer | API calls in service layer % | >90% | 70–90% | <70% | **0%** (874 inline `fetch`) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H11 | Poor Data Caching | Data-fetching points with caching % | >70% | 40–70% | <40% | **0%** (no query cache) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H12 | Weak Frontend Auth | Token storage + routes guarded | httpOnly + 100% | One gap | Both gaps | httpOnly cookie ✓ / **data API unguarded** | <span class=\"rating rating-moderate\">Moderate</span> |
+| H13 | Frontend Security Vulnerabilities | XSS-risk + hardcoded secrets count | 0 each | 1–3 total | >3 total | **5+** (2 innerHTML, 2 no-SRI, seeded pw) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H14 | Frontend Performance Gaps | Memoization / render optimization | good | some gaps | none + leaks | **0** memo, 375 interval leaks | <span class=\"rating rating-moderate\">Moderate</span> |
+| H15 | Browser Compatibility Gaps | Browserslist + polyfills configured | Both present | One missing | Both missing | polyfills ✓ / **no browserslist** | <span class=\"rating rating-moderate\">Moderate</span> |
+| H16 | Frontend Code Quality | ESLint in CI + TypeScript strict | Both Yes | One Yes | Both No | strict ✓ / **ESLint not in CI** | <span class=\"rating rating-moderate\">Moderate</span> |
+| H17 | Technical Debt & Dependencies | Critical/High CVEs found | 0 | 1–3 | >3 | **1 High** (lodash) + dead deps | <span class=\"rating rating-moderate\">Moderate</span> |
+| H18 | *(additional)* useEffect Cleanup / Leaks | Effects with timers lacking cleanup | 0 | 1–10 | >10 | **375** `setInterval` w/o cleanup | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H19 | *(additional)* Missing Error Boundaries | Error boundaries present | ≥1 per area | 1 global | 0 | **0** boundaries app-wide | <span class=\"rating rating-moderate\">Moderate</span> |
+
+### §3.4 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H10 No API Integration Layer | Move 874 inline `fetch` calls into a typed `services/ivrClient` with auth-header/error interceptors | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H12 Weak Frontend Auth | Add `auth` middleware to the `ivr-legacy` route group; restrict mutations to POST/PUT/DELETE | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H13 Security Vulnerabilities | Add SRI to CDN scripts, remove seeded `password:'secret'`, sanitize pagination HTML | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H18 Interval Leaks | Return `clearInterval` cleanup in 375 effects (or migrate to React Query polling) | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H1 Component Duplication | Consolidate `LegacyPass2_*`, `*Monolith*` and `legacyFormatters1-8` into parameterised units | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H6 Weak Architecture | Extract service layer + presentational components; inject `tenantId` from auth context | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H7 Missing Inventory | Publish `Shared/` as `@/ui` + Storybook; migrate IVR raw controls onto it | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H8 No Design System | Introduce design tokens; codemod 13,701 inline styles to Tailwind classes | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H11 Poor Data Caching | Adopt React Query with `staleTime` and post-mutation invalidation | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H2 Legacy Class Components | Convert 147 `*ClassWidget.jsx` to typed function components with a shared hook | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| H19 Missing Error Boundaries | Add global + per-feature `ErrorBoundary` with fallback UI | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| H16 Code Quality | Add ESLint CI job; re-enable `no-explicit-any`; bring `.jsx` under strict tsconfig | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| H17 Technical Debt | Remove unused vulnerable `lodash` + dead `react-router-dom`; upgrade prettier/eslint | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| H3 Massive Components | Replace unrolled markup with data maps; extract logic to hooks (`max-lines` rule) | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| H14 Performance Gaps | Fix interval leaks, memoize heavy tables, add a CI bundle budget | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| H15 Browser Compatibility | Add `.browserslistrc`; bundle polyfills locally; wire Autoprefixer | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-low\">Low</span> |
+
+### §3.5 Expected Outcomes
+
+- **A centralized `services/ivrClient` layer** replaces 874 scattered `fetch` calls, giving one place for auth headers, CSRF, base URL, typed responses and consistent error UX — and making the API mockable in tests.
+- **Guarding the `ivr-legacy` route group and removing GET mutations** closes an open, unauthenticated data-and-delete surface that currently sits behind an authenticated page shell.
+- **Fixing the 375 interval leaks** (or moving to React Query polling) eliminates a compounding memory/network leak, stabilising long sessions and cutting idle backend traffic.
+- **Adopting React Query** brings caching, loading/error states and post-mutation invalidation, ending stale-after-save UX and redundant refetching.
+- **Consolidating ~517 duplicated clones** into parameterised components/utilities shrinks the tree, kills behaviour drift, and makes a single fix apply everywhere.
+- **A documented `@/ui` library + design tokens** replaces 13,701 inline styles with a single source of truth for colour and spacing, restoring visual consistency and making rebrands one-line changes.
+- **Converting 147 class widgets to typed hooks** and enforcing ESLint in CI with `strict` typing catches hook-rule and type errors (including the leaks) before they reach `master`.
+- **Removing the unused, CVE-carrying `lodash` and dead `react-router-dom`** clears the one High-severity advisory and reduces attack surface and audit noise to zero.
+- **Adding error boundaries** turns a full-page blank-out on any render throw into a contained, recoverable per-feature fallback.","ttft_ms":2446,"ttft_stream_ms":1441,"time_to_request_ms":179,"type":"result","duration_ms":487645,"uuid":"15edec16-e292-4579-b37e-0beb5093972f"}
