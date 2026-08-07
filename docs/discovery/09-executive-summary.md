@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** discovery-pingCRM-7Aug · **Generated:** 07/08/2026, 17:45:01
+**Project:** discovery-pingCRM-7Aug · **Generated:** 07/08/2026, 17:50:34
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 4 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 5 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -14,6 +14,7 @@
 | 2 | Code Quality & Complexity Analysis | — |
 | 3 | Frontend Modernization Analysis | — |
 | 4 | Backend Modernization Analysis | — |
+| 5 | Testing & Quality Assurance Analysis | — |
 
 ---
 
@@ -256,3 +257,46 @@
 - **Performance headroom:** removing 540 blocking `sleep(1)` calls, eliminating 420 N+1 accessors and adding Redis caching frees the worker pool and cuts database load under concurrency.
 - **Observable failures:** removing blanket `catch(\\Throwable)` swallowing and adding correlation-ID logging surfaces production errors to monitoring instead of hiding them behind HTTP 200s.
 - **Contract stability:** an OpenAPI spec, versioned routes, API linting and contract tests in CI stop breaking changes from reaching integrators undetected.","ttft_ms":1529,"ttft_stream_ms":1350,"time_to_request_ms":152,"type":"result","duration_ms":435400,"uuid":"11344f34-6955-4959-856a-52c4750ebfb4"}
+
+---
+
+## 5. Testing & Quality Assurance Analysis
+
+> **Executive Summary**
+>
+> The test suite is effectively absent relative to the size of the codebase: **4 test files** guard **~1,045 source files** (141 PHP, ~904 TS/TSX). Backend testing is limited to two Inertia feature tests (`ContactsTest`, `OrganizationsTest`) plus one placeholder `ExampleTest` that only asserts `true`; the frontend has a single `smoke.test.ts` that asserts `true === true` and covers zero React components. The entire legacy IVR subsystem — 83 fat controllers, 12 \"God\" services, 12 repositories, and ~84 unversioned JSON API endpoints under `/api/ivr-legacy` — ships with **no tests whatsoever**, including authentication (`AuthenticatedSessionController`) and crypto helpers (`LegacyIvrCrypto`). Estimated overall coverage is **<5%** (backend ~3%, frontend 0%) based on the test-file-to-source ratio, since no coverage report is present. CI (`.github/workflows/tests.yml`) does run `php artisan test` on every push/PR — a genuine backend gate — but never invokes `npm run test`, so frontend tests are unenforced. There are no integration tests around the service/repository boundaries, no contract tests for the public API, and no end-to-end tests at all.
+
+## 5.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Untested Critical Logic | Critical modules with zero tests | 0 | 1–3 | >3 | Auth + 12 God services + 12 repos + Users/Reports/Images (>25 modules) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H2 | Low Test Coverage | Overall coverage % | >80% | 50–80% | <50% | ~3% BE · 0% FE (est.) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H3 | Missing Integration Tests | Boundaries covered % | >70% | 30–70% | <30% | ~2 of ~40 boundaries (~5%) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H4 | Missing Contract Tests | APIs with contract tests % | >80% | 40–80% | <40% | 0% of ~84 `/api/ivr-legacy` endpoints | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H5 | Flaky / Skipped Tests | Skipped/flaky test count | 0 | 1–5 | >5 | 0 | <span class=\"rating rating-good\">Good</span> |
+| H6 | No CI Test Gate | Tests enforced in CI | Required gate | Runs, not required | No CI test run | BE gated; FE vitest never runs | <span class=\"rating rating-moderate\">Moderate</span> |
+| H7 | No End-to-End Tests *(additional)* | E2E specs for critical journeys (target ≥1 suite) | ≥1 suite | partial | none | 0 (no Cypress/Playwright) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H8 | Assertion-free Placeholder Tests *(additional)* | Tests with no meaningful assertion (target 0) | 0 | 1–3 | >3 | 2 (`ExampleTest`, `smoke.test.ts`) | <span class=\"rating rating-moderate\">Moderate</span> |
+
+## 5.4 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H1 Untested Critical Logic | Add PHPUnit unit/feature tests for auth, the 12 God services/repositories, and legacy helpers; add a Login.tsx component test | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H2 Low Test Coverage | Enable PHPUnit + Vitest coverage reporting, then drive backend to 75–80% and stand up frontend component tests | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H3 Missing Integration Tests | Add RefreshDatabase integration tests across controller→service→repository→DB for IVR modules | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H4 Missing Contract Tests | Add PHPUnit contract tests (status + assertJsonStructure) for the ~84 `/api/ivr-legacy` endpoints | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H7 No End-to-End Tests | Add Playwright with a login + core-journey spec and wire it into CI | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H6 No CI Test Gate (frontend) | Add `npm run test` to `tests.yml` and make it a required check | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| H8 Assertion-free Placeholder Tests | Replace `ExampleTest` and `smoke.test.ts` with real assertions; add a check flagging assertion-free tests | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+
+## 5.5 Expected Outcomes
+
+- **Critical paths protected before modernization** — auth, the 12 God services/repositories, and legacy crypto/string helpers gain characterization and unit tests, so refactors and extractions can be verified against a regression net instead of shipping blind.
+- **A real coverage baseline replaces guesswork** — enabling PHPUnit and Vitest coverage turns the estimated <5% into a measured number and lets the team track progress toward the 75–80% target per layer.
+- **IVR wiring is verified end to end** — integration tests across controller→service→repository→DB catch broken seams that unit tests miss, especially in sync/import flows.
+- **The public API stops breaking silently** — contract tests on `/api/ivr-legacy` fail the build when a response schema or status changes, protecting the React client and any external consumers.
+- **CI enforces quality on both layers** — adding the frontend Vitest step (and Playwright E2E) as required checks means every PR runs the full suite, so tests actually prevent regressions rather than merely existing.
+
+The Markdown deliverable is complete at `docs/discovery/05-testing-and-quality-assurance.md`; the orchestration UI will convert it to the PDF automatically.","ttft_ms":2441,"ttft_stream_ms":1537,"time_to_request_ms":241,"type":"result","duration_ms":254906,"uuid":"1422492b-faa6-400f-932d-7b41cd194d0c"}
