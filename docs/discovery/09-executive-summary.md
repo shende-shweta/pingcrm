@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** discovery-pingCRM-7Aug · **Generated:** 07/08/2026, 17:59:16
+**Project:** discovery-pingCRM-7Aug · **Generated:** 07/08/2026, 18:05:55
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 6 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 7 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -16,6 +16,7 @@
 | 4 | Backend Modernization Analysis | — |
 | 5 | Testing & Quality Assurance Analysis | — |
 | 6 | Security Analysis | — |
+| 7 | Performance & Sustainability Analysis | — |
 
 ---
 
@@ -338,3 +339,51 @@ The Markdown deliverable is complete at `docs/discovery/05-testing-and-quality-a
 | Data-integrity — unpinned dev-stability deps, auto-synced routes | Pin stable versions; review generated route file in PRs | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
 
 The full report — including §6.2 evidence with code excerpts and affected-files directives, and the three Mermaid diagrams in §6.4 — is in `docs/discovery/06-security.md`, ready for the orchestration UI to render to PDF.","ttft_ms":1508,"ttft_stream_ms":1334,"time_to_request_ms":82,"type":"result","duration_ms":338090,"uuid":"7c0bef7f-514a-4519-8743-55cc4cd0b098"}
+
+---
+
+## 7. Performance & Sustainability Analysis
+
+> **Executive Summary**
+>
+> PingCRM's core CRM surface (Contacts, Organizations, Reports, IVR module views) is written well — the live read paths in `ReportsController` and the `LoadsIvrModuleData` trait use indexed, joined, `limit()`-bounded queries. The runtime-performance risk is concentrated entirely in a bolted-on \"legacy IVR monolith\" surface: twelve `*GodService` classes expose 540 workflow methods that each call `sleep(1)` as a synthetic \"blocking synchronous remote sync\", and each is wired to a live HTTP route through 4,400 thin `legacyEndpoint*` methods. Those blocking calls hold PHP-FPM/Apache workers for the full request, starving the worker pool, while an unbounded static `$sharedRuntimeCache` and 480 `SELECT *` repository methods plus 94 unbounded `->get()` calls load whole tenant tables into memory and Inertia payloads. The dominant hotspots are API latency (P3), memory retention (P4), and worker-pool concurrency (P6) — all High Risk. Sustainability posture is partial: an always-on Apache web process with no autoscaling wastes worker-seconds and energy on artificial sleeps, and the CI pipeline caches Composer but not npm and rebuilds all assets on every push.
+
+## 7.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| P1 | Algorithm Efficiency | High-complexity algorithm sites | 0 | 1–5 | >5 | 0 nested-loop/quadratic sites | <span class=\"rating rating-good\">Good</span> |
+| P2 | Database Performance | Deferred → Backend Modernization (H14/H10) | — | — | — | See Backend Modernization | — (deferred) |
+| P3 | API Performance | Response-latency hotspots | 0 | 1–5 | >5 | 540 blocking `sleep(1)` + 174 unbounded reads | <span class=\"rating rating-high-risk\">High Risk</span> |
+| P4 | Memory Efficiency | High-memory sites | 0 | 1–3 | >3 | 12 static caches + 480 `SELECT *` + 94 `->get()` | <span class=\"rating rating-high-risk\">High Risk</span> |
+| P5 | CPU Efficiency | CPU-intensive operations | 0 | 1–5 | >5 | 0 (helpers are string appends, no real crypto/hashing) | <span class=\"rating rating-good\">Good</span> |
+| P6 | Concurrency | Parallelizable work + pool sizing (blocking-I/O → Backend Modernization H14) | 0 | 1–5 | >5 | 540 worker-blocking sites, no queue offload, no pool config | <span class=\"rating rating-high-risk\">High Risk</span> |
+| P7 | Caching | Deferred → Backend Modernization H14 / Frontend Modernization H11 | — | — | — | See those reports | — (deferred) |
+| P8 | Resource Utilization | Over-provisioned / idle resources | 0 | 1–3 | >3 | N/A — no container/k8s/Terraform/serverless config (Procfile only) | <span class=\"rating rating-good\">Good</span> |
+| P9 | Network Efficiency | Excessive-traffic sites | 0 | 1–5 | >5 | 12 modules split into ~45 sequential endpoint calls each + oversized Inertia payloads | <span class=\"rating rating-moderate\">Moderate</span> |
+| P10 | Build Efficiency | Build/test pipeline efficiency | efficient | partial | slow / no caching | Composer cached; npm/node_modules **not** cached; full `vite build` + `--ssr` every push | <span class=\"rating rating-moderate\">Moderate</span> |
+| P11 | Logging Efficiency | Excessive-logging sites | 0 | 1–10 | >10 | 1 `Log::` call total; none in hot loops | <span class=\"rating rating-good\">Good</span> |
+| P12 | Sustainability | Resource-optimization posture | optimized | partial | wasteful | Always-on Apache dyno, no autoscaling, 540 artificial `sleep(1)` waste worker-seconds | <span class=\"rating rating-moderate\">Moderate</span> |
+
+**No additional hotspots beyond the standard set were observed.**
+
+## 7.5 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| P3 API Performance | Remove artificial `sleep(1)` from all 540 workflow methods; paginate/column-project the `handleStore`/`handleSync` reads | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| P4 Memory Efficiency | Make `$sharedRuntimeCache` request-scoped or bounded-TTL cache; add LIMIT + column lists to 480 `fetchChunk*`; paginate 94 `->get()` sites | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| P6 Concurrency | Dispatch the 45 independent workflows as a queued `Bus::batch`; right-size worker/DB pools after sleeps are removed | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| P9 Network Efficiency | Coalesce the ~45 per-module endpoints into one batch endpoint; paginate list payloads; enable gzip/brotli at the edge | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| P10 Build Efficiency | Add npm/node caching to `tests.yml`; cache or skip the Vite build in the PHP test job | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| P12 Sustainability | Add a queue worker + autoscaling; remove artificial sleeps so capacity maps to demand; adopt off-peak/carbon-aware scheduling | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+
+## 7.6 Expected Outcomes
+
+- **Removing the 540 `sleep(1)` calls** eliminates a hard 1s-per-endpoint latency floor and frees the worker pool, cutting P95 latency and multiplying achievable concurrency on the same hardware.
+- **Bounding the static cache and adding LIMIT/pagination** (480 `SELECT *` + 94 `->get()`) makes peak memory scale with page size instead of table size, removing OOM risk and GC pressure as IVR data grows.
+- **Queuing the 45-way sequential fan-out as a `Bus::batch`** turns a ~45s blocking request into an immediate enqueue-and-return, restoring throughput under concurrency and letting independent work run in parallel.
+- **Coalescing the chatty per-module endpoints and enabling compression** cuts round-trips and bytes-on-the-wire, lowering tail latency, bandwidth cost, and energy.
+- **Caching npm/build in CI, adding autoscaling and a queue worker, and removing the artificial sleeps** shortens the feedback loop and lets the always-on web tier scale down at off-peak — reducing cloud cost and carbon footprint.
+
+The orchestration UI will now convert the saved Markdown to `docs/discovery/07-performance-sustainability.pdf`.","ttft_ms":3476,"ttft_stream_ms":2497,"time_to_request_ms":115,"type":"result","duration_ms":362757,"uuid":"05bd0f6a-02b7-4f42-9799-78cc4bfd216a"}
