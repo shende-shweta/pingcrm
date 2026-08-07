@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** discovery-pingCRM-7Aug · **Generated:** 07/08/2026, 17:50:34
+**Project:** discovery-pingCRM-7Aug · **Generated:** 07/08/2026, 17:59:16
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 5 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 6 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -15,6 +15,7 @@
 | 3 | Frontend Modernization Analysis | — |
 | 4 | Backend Modernization Analysis | — |
 | 5 | Testing & Quality Assurance Analysis | — |
+| 6 | Security Analysis | — |
 
 ---
 
@@ -300,3 +301,40 @@
 - **CI enforces quality on both layers** — adding the frontend Vitest step (and Playwright E2E) as required checks means every PR runs the full suite, so tests actually prevent regressions rather than merely existing.
 
 The Markdown deliverable is complete at `docs/discovery/05-testing-and-quality-assurance.md`; the orchestration UI will convert it to the PDF automatically.","ttft_ms":2441,"ttft_stream_ms":1537,"time_to_request_ms":241,"type":"result","duration_ms":254906,"uuid":"1422492b-faa6-400f-932d-7b41cd194d0c"}
+
+---
+
+## 6. Security Analysis
+
+> **Executive Summary**
+>
+> This review covered **both layers**: the PHP/Laravel backend (141 source files) and the React/Inertia TypeScript frontend (904 files). The posture is **High Risk**, driven by an extensive \"Legacy IVR\" subsystem grafted onto an otherwise-idiomatic PingCRM base. The most severe issues are **unauthenticated SQL injection** — 80 IVR controllers build `SELECT ... LIKE '%\".$q.\"%'` strings directly from request input and 12 legacy repositories run 480 hand-concatenated `DB::select($sql)` queries — reachable through **80 `ivr-legacy/*` API routes with no `auth` middleware** that accept **GET for state-changing actions**. On top of that, **4,400 controller endpoints call `extract($request->all())`**, and every legacy controller hard-codes `tenantId = 1`, collapsing multi-tenant isolation. 12 \"God services\" embed hard-coded API keys. Frontend risk is narrower: `Shared/Pagination.tsx` renders server-supplied labels through `dangerouslySetInnerHTML`. Dependency hygiene is mixed — `roave/security-advisories` guards Composer, but there is **no audit/Dependabot step in CI**, and npm pins EOL majors.
+
+## 6.1 Security Benchmark Ratings
+
+| # | Security KPI | Target | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Critical Vulnerabilities | 0 | 0 | 1 | >1 | ≥2 (unauth SQLi; mass-assignment via `extract`) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H2 | High Vulnerabilities | 0 | <5 | 5–10 | >10 | >10 (broken access control, IDOR, GET state-change, hard-coded secrets) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H3 | Medium Vulnerabilities | low | <20 | 20–50 | >50 | >50 (info-leak error swallowing, XSS sink, misconfig) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H4 | Vulnerability Density | <0.5/KLOC | <0.5 | 0.5–1.0 | >1.0 | ~3.2/KLOC (562 sinks); ~29/KLOC incl. `extract` | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H5 | OWASP Top 10 Compliance | >95% | >95% | 80–95% | <80% | ~20% clean (8/10 categories with findings) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H6 | Critical/High Vulnerable Deps | 0 | 0 | 1 | >1 | Unverified — no scanner; ≥1 suspected (EOL majors) | <span class=\"rating rating-moderate\">Moderate</span> |
+| H7 | Outdated Dependencies | <10% | <10% | 10–25% | >25% | ~12% (react-router-dom 5, ESLint 8, Prettier 2) | <span class=\"rating rating-moderate\">Moderate</span> |
+| H8 | End-of-Life Dependencies | 0 | 0 | 1–5 | >5 | 3 (react-router-dom 5.2.0, ESLint 8, Prettier 2.x) | <span class=\"rating rating-moderate\">Moderate</span> |
+
+## 6.5 Actions Required
+
+| Finding | Action | Rating | Priority |
+|---|---|---|---|
+| SQL injection (80 controllers + 480 repo queries) | Parameterize all queries / use Eloquent; add CI grep gate on raw concatenation | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| `extract($request->all())` variable injection & mass assignment (4,400) | Remove `extract`; use `$request->validate()` allow-list + `$fillable` create() | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| Broken access control — 80 unauth GET state-change routes; hard-coded tenant | Add `auth` middleware, restrict verbs, derive tenant from user, add ownership policies | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| Hard-coded secrets & fake `LegacyIvrCrypto` | Move keys to env, rotate, replace with `Crypt::encryptString`; add secret scanning | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| Security misconfiguration — verbose errors, `APP_DEBUG=true`, no headers | Log errors server-side, disable debug in prod, add CSP/HSTS/X-Frame-Options middleware | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Frontend XSS sink (FS1) `dangerouslySetInnerHTML` | Render labels as text / DOMPurify; enable `react/no-danger` | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Vulnerable/EOL npm deps & no dependency scan (FS4) | Upgrade/remove EOL deps; add `npm audit` + `composer audit` + Dependabot | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Logging/monitoring gap on state-changing endpoints | Add audit logging + alerting for auth/access events; stop swallowing exceptions | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Data-integrity — unpinned dev-stability deps, auto-synced routes | Pin stable versions; review generated route file in PRs | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+
+The full report — including §6.2 evidence with code excerpts and affected-files directives, and the three Mermaid diagrams in §6.4 — is in `docs/discovery/06-security.md`, ready for the orchestration UI to render to PDF.","ttft_ms":1508,"ttft_stream_ms":1334,"time_to_request_ms":82,"type":"result","duration_ms":338090,"uuid":"7c0bef7f-514a-4519-8743-55cc4cd0b098"}
