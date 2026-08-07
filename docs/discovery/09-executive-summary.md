@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** discovery-pingCRM-7Aug · **Generated:** 07/08/2026, 18:05:55
+**Project:** discovery-pingCRM-7Aug · **Generated:** 07/08/2026, 18:11:25
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 7 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 8 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -17,6 +17,7 @@
 | 5 | Testing & Quality Assurance Analysis | — |
 | 6 | Security Analysis | — |
 | 7 | Performance & Sustainability Analysis | — |
+| 8 | Technical Debt | — |
 
 ---
 
@@ -387,3 +388,41 @@ The full report — including §6.2 evidence with code excerpts and affected-fil
 - **Caching npm/build in CI, adding autoscaling and a queue worker, and removing the artificial sleeps** shortens the feedback loop and lets the always-on web tier scale down at off-peak — reducing cloud cost and carbon footprint.
 
 The orchestration UI will now convert the saved Markdown to `docs/discovery/07-performance-sustainability.pdf`.","ttft_ms":3476,"ttft_stream_ms":2497,"time_to_request_ms":115,"type":"result","duration_ms":362757,"uuid":"05bd0f6a-02b7-4f42-9799-78cc4bfd216a"}
+
+---
+
+## 8. Technical Debt
+
+> **Executive Summary**
+>
+> PingCRM is a Laravel 11 + Inertia + React 19 demo CRM that has been deliberately extended with a large, machine-generated \"legacy Enterprise IVR\" surface (83 fat controllers, 12 legacy models, 47 identically-shaped `ivr_*` tables) documented in `DISCOVERY.md` as intentional technical debt for modernization workshops. On the positive side the repo has genuine hygiene fundamentals: a working `.gitignore`, both lock files committed, three GitHub Actions workflows (tests, static analysis, coding standards), an `.env.example`, and configured ESLint/Prettier/PHPStan tooling. The three most severe gaps are: (1) the database has **no foreign-key constraints anywhere** and a 47-table shared flat schema, pushing all integrity into application code and blocking safe service extraction; (2) **hard-coded production-style secrets are committed** in `config/ivr_legacy.php` (`master_api_key`, Salesforce `client_secret`, a plaintext password), so no clean automation checkout is possible; and (3) **near-zero test coverage** (4 PHPUnit files + 1 Vitest smoke test against ~186k LOC) means the CI gate cannot actually verify agent-authored changes. On agentic-harness readiness the verdict is **not ready today**: the codebase is highly enumerable and isolated (an ideal fan-out target), but the missing verification gate, absent container path, and committed secrets must be remediated before an agent fleet can be trusted to land changes.
+
+## Readiness Benchmark Ratings
+
+| # | Dimension | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|
+| D1 | Code Repository Health | all checks pass | 1–2 gaps | 3+ gaps / no CI | `.gitignore`, 3 CI workflows, both lock files present; no CODEOWNERS/PR template, PHPStan level 1 | <span class=\"rating rating-moderate\">Moderate</span> |
+| D2 | Third-Party Tool Usage | mostly wired & current | some unused/unwired | many unused/unmaintained | Sanctum/Glide/PHPStan wired; Guzzle indirect-only; `laravel/sail` declared but no container; `react-router-dom@5.2.0` stale duplicate of Inertia routing | <span class=\"rating rating-moderate\">Moderate</span> |
+| D3 | AI Tool / Agentic Readiness | ready | partial | not ready | Highly enumerable/isolated units (83 controllers, 47 tables) but no AI config and no verification gate (near-zero tests) | <span class=\"rating rating-moderate\">Moderate</span> |
+| D4 | Database Usage | sound | some gaps | no constraints / shared flat schema | Zero FK constraints; 47 identical flat `ivr_*` tables; non-idempotent seeder | <span class=\"rating rating-high-risk\">High Risk</span> |
+| D5 | Development Environment | reproducible | partial | manual / fragile | `.env.example` + lint/format configured & CI-run; but no Dockerfile/compose/devcontainer and no local pre-commit hook | <span class=\"rating rating-moderate\">Moderate</span> |
+| D6 | Repo hygiene for automation — committed secrets *(additional)* | no secrets in tree | isolated demo creds | production-style secrets committed | `config/ivr_legacy.php` commits `master_api_key`, SF `client_secret`, plaintext password | <span class=\"rating rating-high-risk\">High Risk</span> |
+| D7 | Observability / logging baseline *(additional)* | structured logs + monitoring | basic logging only | none | `LOG_CHANNEL=stack` → single flat file; no structured/JSON logging or monitoring config | <span class=\"rating rating-moderate\">Moderate</span> |
+
+## 8.8 Actions Required
+
+| Gap | Action | Rating | Priority |
+|---|---|---|---|
+| Hard-coded secrets committed in `config/ivr_legacy.php` (`master_api_key`, SF `client_secret`, plaintext password) | Move all values to `env()` reads + `.env.example` placeholders, rotate the exposed credentials, and add a secret-scanning step (e.g. gitleaks) to CI | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| No foreign-key constraints anywhere; integrity lives only in PHP | Add `foreignId(...)->constrained()` (or explicit `foreign()->references()`) for `account_id`/`organization_id`/`tenant_id` in a new migration; verify no orphaned rows first | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| 47 `ivr_*` tables share one flat schema — blocks per-domain service extraction | Define per-domain schemas/ownership for the highest-value modules before any extraction; treat the flat `json payload` tables as a migration target, not an end state | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Near-zero test coverage → CI gate cannot verify agent output | Add characterization tests around CRM + top IVR modules; wire a coverage threshold and raise PHPStan from level 1 toward 5+ | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| No merge gate (no CODEOWNERS/PR template/required checks) | Add `CODEOWNERS` + a PR template and mark `tests`/`static analysis` as required status checks on `master` | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| No container path; `laravel/sail` declared without compose files | Commit a `docker-compose.yml`/`Dockerfile` (or `.devcontainer/`) so contributors, CI, and agent tasks share one disposable environment | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Style tooling not enforced locally; CI standards job auto-pushes fixes instead of gating | Add a pre-commit hook (husky + lint-staged / Pint) and change the CI job to *fail* on violations rather than rewrite them | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-low\">Low</span> |
+| Non-idempotent `DatabaseSeeder` duplicates data on re-run | Make seeders idempotent (`firstOrCreate`/`updateOrCreate` or guarded truncation) so seeding is safe on shared/CI databases | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Declared-but-unwired deps: `guzzle` (unused), `react-router-dom@5.2.0` (stale, duplicates Inertia) | Remove `react-router-dom` (Inertia owns routing) and drop/justify `guzzle`; prune to reduce install and audit surface | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-low\">Low</span> |
+| No observability/logging baseline (`LOG_CHANNEL=stack` → single flat file) | Add structured/JSON logging and a minimal monitoring hook so agent-driven changes are observable in a running environment | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-low\">Low</span> |
+| 92 `extract()` + 105 raw `DB::` sites obstruct safe automated refactor | Systematically replace `extract()` with explicit variables and parameterize raw queries (see §8.4 affected-files) | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+
+The orchestration UI will now convert this Markdown to `docs/discovery/08-technical-debt.pdf`.","ttft_ms":4832,"ttft_stream_ms":4517,"time_to_request_ms":247,"type":"result","duration_ms":280971,"uuid":"a7951925-f53c-4edb-8e32-cdd2dfb3bd8d"}
