@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react'
 import { FormEvent, useEffect, useState } from 'react'
 import { authenticatedLayout } from '@/layouts/authenticatedLayout'
+import { DtmfKeypad } from '@/components/ivr/DtmfKeypad'
 
 interface Column {
     key: string
@@ -81,6 +82,8 @@ function IvrModulesIndex({
         visitModule(moduleSlug, search)
     }
 
+    const isCallFlowModule = moduleSlug === 'call-flow'
+
     return (
         <div>
             <Head title={`Modules · ${title}`} />
@@ -108,6 +111,12 @@ function IvrModulesIndex({
             <div className="mt-8">
                 <h2 className="text-2xl font-bold">{title}</h2>
                 <p className="mt-2 max-w-3xl text-gray-600">{description}</p>
+
+                {isCallFlowModule && (
+                    <div className="mt-6">
+                        <DtmfKeypad />
+                    </div>
+                )}
 
                 <form onSubmit={submitSearch} className="mt-6 flex flex-wrap items-end gap-3 rounded bg-white p-4 shadow">
                     <div className="min-w-[16rem] flex-1">
