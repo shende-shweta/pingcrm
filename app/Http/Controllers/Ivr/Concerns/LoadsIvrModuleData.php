@@ -10,6 +10,21 @@ use Illuminate\Support\Facades\DB;
 
 trait LoadsIvrModuleData
 {
+    private array $allowedModules = [
+        'agent-desk',
+        'business-hours',
+        'call-queues',
+        'ivr-menus',
+        'voice-mailboxes',
+        'holiday-schedules',
+        'time-conditions',
+        'ring-groups',
+        'announcements',
+        'music-on-hold',
+        'outbound-routes',
+        'trunks',
+    ];
+
     protected function columnsForView(string $view): array
     {
         return match ($view) {
@@ -229,6 +244,10 @@ trait LoadsIvrModuleData
 
     protected function tableForModule(string $module): string
     {
+        if (! in_array($module, $this->allowedModules)) {
+            abort(404, 'Invalid module');
+        }
+
         $snake = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $module));
 
         return 'ivr_'.$snake.'s';
