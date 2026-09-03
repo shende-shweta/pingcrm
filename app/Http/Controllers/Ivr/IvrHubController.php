@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Ivr;
 use App\Http\Controllers\Controller;
 use App\Support\IvrAccountContext;
 use Carbon\Carbon;
+use Illuminate\Database\Query\Expression;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -63,6 +64,15 @@ class IvrHubController extends Controller
         ];
     }
 
+    private function hourExpression(string $column): Expression
+    {
+        return match (DB::connection()->getDriverName()) {
+            'mysql' => DB::raw("HOUR($column)"),
+            'pgsql' => DB::raw("EXTRACT(hour FROM $column)"),
+            default => DB::raw("CAST(strftime('%H', $column) AS INTEGER)"),
+        };
+    }
+
     private function loadStats(IvrAccountContext $ctx, array $filters): array
     {
         $queueQuery = DB::table('ivr_operational_queues')->where('account_id', $ctx->accountId);
@@ -106,9 +116,15 @@ class IvrHubController extends Controller
             });
         }
 
-        $totalCalls = (clone $callsQuery)->count();
-        $abandoned = (clone $callsQuery)->where('disposition', 'Abandoned')->count();
-        $avgHandle = (clone $callsQuery)->where('duration_sec', '>', 0)->avg('duration_sec');
+        $aggregates = (clone $callsQuery)->selectRaw(
+            'COUNT(*) as total_calls,
+             SUM(CASE WHEN disposition = \'Abandoned\' THEN 1 ELSE 0 END) as abandoned_count,
+             AVG(CASE WHEN duration_sec > 0 THEN duration_sec ELSE NULL END) as avg_handle'
+        )->first();
+
+        $totalCalls = (int) ($aggregates->total_calls ?? 0);
+        $abandoned = (int) ($aggregates->abandoned_count ?? 0);
+        $avgHandle = (float) ($aggregates->avg_handle ?? 0);
 
         $slaWeighted = $queues->count() > 0
             ? round((float) $queues->avg('sla_pct'), 1)
@@ -121,7 +137,7 @@ class IvrHubController extends Controller
             'queued_calls' => $queued,
             'agents_online' => $agentsOnline,
             'service_level_pct' => $slaWeighted,
-            'avg_handle_time_sec' => (int) round($avgHandle ?? 0),
+            'avg_handle_time_sec' => (int) round($avgHandle),
             'abandon_rate_pct' => $totalCalls > 0 ? round(($abandoned / $totalCalls) * 100, 1) : 0.0,
         ];
     }
@@ -129,11 +145,13 @@ class IvrHubController extends Controller
     private function loadHourlyVolume(IvrAccountContext $ctx, string $date): array
     {
         if ($ctx->organizationId) {
+            $hourExpr = $this->hourExpression('started_at');
+
             $rows = DB::table('ivr_call_records')
                 ->where('account_id', $ctx->accountId)
                 ->where('organization_id', $ctx->organizationId)
                 ->whereDate('started_at', $date)
-                ->selectRaw('CAST(strftime(\'%H\', started_at) AS INTEGER) as hour_sort, count(*) as inbound_count')
+                ->selectRaw($hourExpr.' as hour_sort, count(*) as inbound_count')
                 ->groupBy('hour_sort')
                 ->orderBy('hour_sort')
                 ->get();
@@ -377,5 +395,4 @@ class IvrHubController extends Controller
 
         return ($hour - 12).'p';
     }
-
 }
