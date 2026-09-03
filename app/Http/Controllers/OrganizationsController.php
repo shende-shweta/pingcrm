@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -46,7 +47,7 @@ class OrganizationsController extends Controller
                 'address' => ['nullable', 'max:150'],
                 'city' => ['nullable', 'max:50'],
                 'region' => ['nullable', 'max:50'],
-                'country' => ['nullable', 'max:2'],
+                'country' => ['nullable', 'string', 'size:2', Rule::in(config('countries'))],
                 'postal_code' => ['nullable', 'max:25'],
             ])
         );
@@ -83,7 +84,7 @@ class OrganizationsController extends Controller
                 'address' => ['nullable', 'max:150'],
                 'city' => ['nullable', 'max:50'],
                 'region' => ['nullable', 'max:50'],
-                'country' => ['nullable', 'max:2'],
+                'country' => ['nullable', 'string', 'size:2', Rule::in(config('countries'))],
                 'postal_code' => ['nullable', 'max:25'],
             ])
         );
