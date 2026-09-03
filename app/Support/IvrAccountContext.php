@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 
 final class IvrAccountContext
 {
+    private ?array $memoQueueIds = null;
+
     public function __construct(
         public readonly int $accountId,
         public readonly ?int $organizationId,
@@ -59,12 +61,20 @@ final class IvrAccountContext
     /** @return list<int> */
     public function queueIdsForScope(): array
     {
+        if ($this->memoQueueIds !== null) {
+            return $this->memoQueueIds;
+        }
+
         $query = DB::table('ivr_operational_queues')->where('account_id', $this->accountId);
         if ($this->organizationId) {
             $query->where('organization_id', $this->organizationId);
         }
 
-        return $query->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $result = $query->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $this->memoQueueIds = $result;
+
+        return $this->memoQueueIds;
     }
 
     public function applyCallFilters(Builder $query, string $alias = 'ivr_call_records'): Builder
