@@ -1,13 +1,12 @@
-// Redmine #17 — IVR Legacy Security Hardening (T-10, T-22)
-// Tests for the validateClientSide guard present in all IVR legacy page components.
-// This is the client-side mirror of PHP LegacyModuleService validation — PHP is authoritative.
-
+/**
+ * Tests for the validateClientSide guard present in all IVR legacy page components.
+ * This is the client-side mirror of PHP LegacyModuleService validation — PHP is authoritative.
+ *
+ * @see Redmine #17 — IVR Legacy Security Hardening (T-10, T-22)
+ */
 import { describe, expect, it } from 'vitest'
 
-/**
- * Extracted from AgentDeskIndex, AgentDeskStore, and all other IVR legacy pages.
- * Every generated page contains this identical inline function.
- */
+/** Client-side presence guard extracted from IVR legacy page components. */
 function validateClientSide(payload: Record<string, unknown>): string | null {
     if (!payload.name) return 'Name required'
     return null
@@ -15,7 +14,6 @@ function validateClientSide(payload: Record<string, unknown>): string | null {
 
 describe('IVR legacy page: validateClientSide', () => {
     it('returns "Name required" when name key is absent', () => {
-        // AC: all IVR store payloads require name
         expect(validateClientSide({})).toBe('Name required')
     })
 
@@ -36,17 +34,14 @@ describe('IVR legacy page: validateClientSide', () => {
     })
 
     it('returns null when name is a non-empty string', () => {
-        // Happy path — PHP then further validates allowed fields
         expect(validateClientSide({ name: 'Support Desk' })).toBeNull()
     })
 
     it('returns null when payload has name plus extra fields (injection attempt)', () => {
-        // Extra fields are stripped server-side; client guard should not reject them
         expect(validateClientSide({ name: 'Desk', injectedField: 'x', accountId: 999 })).toBeNull()
     })
 
     it('returns null for a whitespace-only name (server validates further)', () => {
-        // Client guard passes whitespace — PHP min:1 / not-empty should catch it
         expect(validateClientSide({ name: '   ' })).toBeNull()
     })
 })

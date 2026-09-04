@@ -77,12 +77,10 @@ class LegacySecurityTest extends TestCase
         $response->assertStatus(200);
         $data = $response->json('data');
 
-        // Should only return rows for the authenticated user's account
         foreach ($data as $row) {
             $this->assertEquals($user->account_id, $row['account_id'] ?? $user->account_id);
         }
 
-        // Other account's desk should not be in results
         $names = array_column($data, 'name');
         $this->assertNotContains('Other Account Desk', $names);
     }

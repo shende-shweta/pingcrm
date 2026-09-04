@@ -28,7 +28,6 @@ class UsersControllerTest extends TestCase
     {
         $user = $this->makeUser();
 
-        // Create an existing user with the same email in the same account
         User::factory()->create([
             'account_id' => $user->account_id,
             'email' => 'duplicate@example.com',
@@ -50,13 +49,11 @@ class UsersControllerTest extends TestCase
         $userA = $this->makeUser();
         $accountB = Account::create(['name' => 'Account B']);
 
-        // Create a user in account B with this email
         User::factory()->create([
             'account_id' => $accountB->id,
             'email' => 'shared@example.com',
         ]);
 
-        // User A should be able to create a user with the same email in their own account
         $response = $this->actingAs($userA)->post('/users', [
             'first_name' => 'Jane',
             'last_name' => 'Doe',
@@ -77,7 +74,7 @@ class UsersControllerTest extends TestCase
             'first_name' => 'John',
             'last_name' => 'Doe',
             'email' => 'newuser@example.com',
-            'password' => 'short7',  // 6 chars, less than 8
+            'password' => 'short7',
             'owner' => false,
         ]);
 
@@ -92,7 +89,7 @@ class UsersControllerTest extends TestCase
             'first_name' => 'John',
             'last_name' => 'Doe',
             'email' => 'newuser@example.com',
-            'password' => 'exactly8',  // exactly 8 chars
+            'password' => 'exactly8',
             'owner' => false,
         ]);
 
@@ -110,7 +107,7 @@ class UsersControllerTest extends TestCase
             'first_name' => $targetUser->first_name,
             'last_name' => $targetUser->last_name,
             'email' => $targetUser->email,
-            'password' => '',  // empty string, should be allowed
+            'password' => '',
             'owner' => $targetUser->owner,
         ]);
 

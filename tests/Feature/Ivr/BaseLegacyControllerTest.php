@@ -84,15 +84,6 @@ class BaseLegacyControllerTest extends TestCase
     {
         $user = $this->makeUser();
 
-        // Bind a service that throws
-        $this->app->bind(LegacyModuleService::class, function () {
-            $mock = $this->createMock(LegacyModuleService::class);
-            $mock->method('index')->willThrowException(new \RuntimeException('Simulated failure'));
-
-            return $mock;
-        });
-
-        // Temporarily swap the god service to force the controller to use our throwing service
         $this->app->bind(AgentDeskGodService::class, function () {
             $mock = $this->createMock(AgentDeskGodService::class);
             $mock->method('index')->willThrowException(new \RuntimeException('Simulated failure'));

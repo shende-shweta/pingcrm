@@ -18,7 +18,6 @@ class IvrHubControllerHourExpressionTest extends TestCase
         $method = $reflection->getMethod('hourExpression');
         $method->setAccessible(true);
 
-        // Mock the DB connection driver
         $connectionMock = $this->createMock(\Illuminate\Database\Connection::class);
         $connectionMock->method('getDriverName')->willReturn($driver);
 
@@ -35,7 +34,6 @@ class IvrHubControllerHourExpressionTest extends TestCase
         $method = $reflection->getMethod('hourExpression');
         $method->setAccessible(true);
 
-        // Test that for sqlite (default), the strftime format is used
         $connectionMock = $this->createMock(\Illuminate\Database\Connection::class);
         $connectionMock->method('getDriverName')->willReturn('sqlite');
 

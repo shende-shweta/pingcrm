@@ -1,9 +1,10 @@
 <?php
 
 use App\Http\Controllers\Ivr\BaseLegacyController;
+use App\Http\Middleware\VerifyLegacyApiKey;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('ivr-legacy')->middleware(['web', 'auth'])->group(function () {
+Route::prefix('ivr-legacy')->middleware(['web', 'auth', VerifyLegacyApiKey::class])->group(function () {
     $modules = [
         'agent-desk',
         'business-hours',

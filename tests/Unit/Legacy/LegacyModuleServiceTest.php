@@ -21,7 +21,7 @@ class LegacyModuleServiceTest extends TestCase
         $godService = new AgentDeskGodService();
         $service = new LegacyModuleService($godService);
 
-        $result = $service->store(1, []); // no name field
+        $result = $service->store(1, []);
 
         $this->assertFalse($result['ok']);
         $this->assertEquals(422, $result['code']);

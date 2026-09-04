@@ -1,11 +1,11 @@
-// Redmine #17 — IVR Legacy Security Hardening (T-10, T-11, T-23)
-// Tests for the {ok, data, meta} / {ok, error, code, details} envelope format
-// introduced by LegacyModuleService + BaseLegacyController in Phase 2.
-// React pages must read response.data.data (not response.data) after this change.
-
+/**
+ * Tests for the {ok, data, meta} / {ok, error, code, details} envelope format
+ * introduced by LegacyModuleService + BaseLegacyController in Phase 2.
+ * React pages must read response.data.data (not response.data) after this change.
+ *
+ * @see Redmine #17 — IVR Legacy Security Hardening (T-10, T-11, T-23)
+ */
 import { describe, expect, it } from 'vitest'
-
-// ----- Types mirroring LegacyModuleService response contracts -----
 
 type SuccessEnvelope<T = unknown> = {
     ok: true
@@ -22,8 +22,6 @@ type ErrorEnvelope = {
 
 type LegacyEnvelope<T = unknown> = SuccessEnvelope<T> | ErrorEnvelope
 
-// ----- Helpers that React pages should use after the Phase 2 envelope change -----
-
 function extractRows<T>(envelope: LegacyEnvelope<T>): T[] {
     return envelope.ok ? envelope.data : []
 }
@@ -35,8 +33,6 @@ function isSuccessEnvelope<T>(envelope: LegacyEnvelope<T>): envelope is SuccessE
 function errorMessage(envelope: LegacyEnvelope): string | null {
     return isSuccessEnvelope(envelope) ? null : envelope.error
 }
-
-// ----- Tests -----
 
 describe('Legacy API envelope: success path', () => {
     it('extractRows returns data array from success envelope', () => {

@@ -19,7 +19,6 @@ class AbstractGodServiceTest extends TestCase
 
         $this->service = new AgentDeskGodService();
 
-        // Ensure the ivr_agent_desks table exists for testing
         if (! DB::getSchemaBuilder()->hasTable('ivr_agent_desks')) {
             DB::statement('CREATE TABLE ivr_agent_desks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,7 +62,6 @@ class AbstractGodServiceTest extends TestCase
         $this->assertNotEmpty($log);
         $lastQuery = end($log);
 
-        // Verify the search term is passed as a binding, not embedded in the SQL
         $this->assertStringNotContainsString('Support', $lastQuery['query']);
         $this->assertNotEmpty($lastQuery['bindings']);
     }
@@ -75,14 +73,13 @@ class AbstractGodServiceTest extends TestCase
             'payload' => '{}',
             'status' => 'active',
             'injected_field' => 'malicious_value',
-            'account_id' => 999, // should be ignored; account_id comes from parameter
+            'account_id' => 999,
         ]);
 
         $row = DB::table('ivr_agent_desks')->find($id);
 
         $this->assertNotNull($row);
         $this->assertEquals('Test Desk', $row->name);
-        // The injected_field should not be in the row (column doesn't exist on table)
         $this->assertObjectNotHasProperty('injected_field', $row);
     }
 
@@ -110,13 +107,10 @@ class AbstractGodServiceTest extends TestCase
             'created_at' => now(),
         ]);
 
-        // Account B tries to destroy Account A's record
         $result = $this->service->destroy(2, $idAccountA);
 
-        // Should return false because account_id doesn't match
         $this->assertFalse($result);
 
-        // Record should still exist
         $this->assertNotNull(DB::table('ivr_agent_desks')->find($idAccountA));
     }
 }

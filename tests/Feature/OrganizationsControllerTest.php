@@ -27,7 +27,7 @@ class OrganizationsControllerTest extends TestCase
 
         $response = $this->actingAs($user)->post('/organizations', [
             'name' => 'Test Org',
-            'country' => 'XX',  // invalid ISO code
+            'country' => 'XX',
         ]);
 
         $response->assertSessionHasErrors('country');
@@ -39,7 +39,7 @@ class OrganizationsControllerTest extends TestCase
 
         $response = $this->actingAs($user)->post('/organizations', [
             'name' => 'Test Org',
-            'country' => 'US',  // valid ISO code
+            'country' => 'US',
         ]);
 
         $response->assertSessionHasNoErrors();

@@ -66,7 +66,7 @@ class LegacyModuleService
             array_merge($input, ['id' => $id]),
             [
                 'id' => ['required', 'integer'],
-                'name' => ['required', 'string', 'max:255'],
+                'name' => ['sometimes', 'required', 'string', 'max:255'],
             ]
         );
 
@@ -113,6 +113,11 @@ class LegacyModuleService
     {
         $result = $this->service->sync($accountId, $input);
 
-        return ['ok' => true, 'jobId' => $result['jobId']];
+        return [
+            'ok' => true,
+            'jobId' => $result['jobId'],
+            'status' => $result['status'],
+            'implemented' => $result['implemented'],
+        ];
     }
 }
