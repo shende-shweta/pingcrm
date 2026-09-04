@@ -8,13 +8,11 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * Covers update() field allowlist and cross-tenant fence gaps not in AbstractGodServiceTest.
+ * @see Redmine #17 — IVR Legacy Security Hardening
  *
- * @see Redmine #17 IVR Legacy Security Hardening (T-04, T-06, T-07, T-22)
- *
- * AC-T04 / T-06: update() filters payload through allowedFields; account_id cannot be overwritten.
- * AC-T07: update() must be scoped to the caller's account_id.
- * AC-T04: destroy() must also be scoped; cross-tenant deletes are prevented.
+ * Covers: AC-T04 (update/destroy field allowlist and cross-tenant prevention),
+ *         AC-T06 (account_id injection prevention), AC-T07 (cross-tenant update scope),
+ *         AC-T22 (index scope and edge cases).
  */
 class AbstractGodServiceUpdateTest extends TestCase
 {

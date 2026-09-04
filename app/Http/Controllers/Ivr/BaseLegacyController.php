@@ -136,9 +136,8 @@ class BaseLegacyController extends Controller
         try {
             $service = $this->resolveService($request);
             $result = $service->sync($this->accountId(), $request->all());
-            $httpCode = $result['ok'] ? ($result['code'] ?? 200) : ($result['code'] ?? 422);
 
-            return response()->json($result, $httpCode);
+            return response()->json($result, $result['ok'] ? 202 : ($result['code'] ?? 422));
         } catch (\Throwable $e) {
             Log::error('IVR legacy endpoint failure', [
                 'module' => $request->route('module'),
@@ -157,6 +156,9 @@ class BaseLegacyController extends Controller
         try {
             $service = $this->resolveService($request);
             $result = $service->index($this->accountId(), $request->input('q'));
+            if (isset($result['meta'])) {
+                $result['meta']['cap'] = 100;
+            }
 
             return response()->json($result, $result['ok'] ? 200 : ($result['code'] ?? 422));
         } catch (\Throwable $e) {

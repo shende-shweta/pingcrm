@@ -111,8 +111,8 @@ class LegacyModuleService
 
     public function sync(int $accountId, array $input): array
     {
-        $this->service->sync($accountId, $input);
+        $result = $this->service->sync($accountId, $input);
 
-        return ['ok' => true, 'status' => 'queued', 'implemented' => false, 'code' => 202];
+        return array_merge(['ok' => true], $result);
     }
 }
