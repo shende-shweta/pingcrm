@@ -44,10 +44,10 @@ class UsersController extends Controller
         Request::validate([
             'first_name' => ['required', 'max:50'],
             'last_name' => ['required', 'max:50'],
-            'email' => ['required', 'max:50', 'email', Rule::unique('users')],
-            'password' => ['nullable'],
+            'email' => ['required', 'max:50', 'email', Rule::unique('users', 'email')->where('account_id', Auth::user()->account_id)],
+            'password' => ['nullable', 'string', 'min:8'],
             'owner' => ['required', 'boolean'],
-            'photo' => ['nullable', 'image'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
         ]);
 
         Auth::user()->account->users()->create([
@@ -86,10 +86,10 @@ class UsersController extends Controller
         Request::validate([
             'first_name' => ['required', 'max:50'],
             'last_name' => ['required', 'max:50'],
-            'email' => ['required', 'max:50', 'email', Rule::unique('users')->ignore($user->id)],
-            'password' => ['nullable'],
+            'email' => ['required', 'max:50', 'email', Rule::unique('users', 'email')->where('account_id', Auth::user()->account_id)->ignore($user->id)],
+            'password' => ['nullable', 'string', 'min:8'],
             'owner' => ['required', 'boolean'],
-            'photo' => ['nullable', 'image'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
         ]);
 
         $user->update(Request::only('first_name', 'last_name', 'email', 'owner'));
