@@ -27,7 +27,6 @@ class IvrSyncJob implements ShouldQueue
             'payload_keys' => array_keys($this->payload),
         ]);
 
-        // @todo Redmine #17 (Open Question #1) — replace this log-only skeleton once the
-        //       remote sync target is confirmed and the design decision is closed.
+        // @todo Redmine #17 Open Question #1: sync target TBD; replace skeleton once destination is confirmed.
     }
 }

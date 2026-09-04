@@ -84,6 +84,13 @@ class BaseLegacyControllerTest extends TestCase
     {
         $user = $this->makeUser();
 
+        $this->app->bind(LegacyModuleService::class, function () {
+            $mock = $this->createMock(LegacyModuleService::class);
+            $mock->method('index')->willThrowException(new \RuntimeException('Simulated failure'));
+
+            return $mock;
+        });
+
         $this->app->bind(AgentDeskGodService::class, function () {
             $mock = $this->createMock(AgentDeskGodService::class);
             $mock->method('index')->willThrowException(new \RuntimeException('Simulated failure'));

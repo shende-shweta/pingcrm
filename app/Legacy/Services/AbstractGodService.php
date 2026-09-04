@@ -56,10 +56,6 @@ abstract class AbstractGodService
     {
         IvrSyncJob::dispatch($this->table, $accountId, Arr::only($payload, $this->allowedFields));
 
-        return [
-            'jobId' => uniqid('sync_', true),
-            'status' => 'queued',
-            'implemented' => false,
-        ];
+        return [];
     }
 }

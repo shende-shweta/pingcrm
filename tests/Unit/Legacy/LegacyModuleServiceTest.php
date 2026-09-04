@@ -56,7 +56,8 @@ class LegacyModuleServiceTest extends TestCase
 
         Queue::assertPushed(IvrSyncJob::class);
         $this->assertTrue($result['ok']);
-        $this->assertArrayHasKey('jobId', $result);
+        $this->assertEquals('queued', $result['status']);
+        $this->assertFalse($result['implemented']);
     }
 
     public function test_mutating_operations_log_info(): void

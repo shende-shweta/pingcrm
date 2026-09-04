@@ -1,10 +1,3 @@
-/**
- * Tests for the {ok, data, meta} / {ok, error, code, details} envelope format
- * introduced by LegacyModuleService + BaseLegacyController in Phase 2.
- * React pages must read response.data.data (not response.data) after this change.
- *
- * @see Redmine #17 — IVR Legacy Security Hardening (T-10, T-11, T-23)
- */
 import { describe, expect, it } from 'vitest'
 
 type SuccessEnvelope<T = unknown> = {

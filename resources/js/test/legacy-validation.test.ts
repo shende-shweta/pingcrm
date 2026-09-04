@@ -1,12 +1,5 @@
-/**
- * Tests for the validateClientSide guard present in all IVR legacy page components.
- * This is the client-side mirror of PHP LegacyModuleService validation — PHP is authoritative.
- *
- * @see Redmine #17 — IVR Legacy Security Hardening (T-10, T-22)
- */
 import { describe, expect, it } from 'vitest'
 
-/** Client-side presence guard extracted from IVR legacy page components. */
 function validateClientSide(payload: Record<string, unknown>): string | null {
     if (!payload.name) return 'Name required'
     return null

@@ -10,6 +10,27 @@ use Illuminate\Support\Facades\DB;
 
 trait LoadsIvrModuleData
 {
+    private array $allowedModules = [
+        'CallFlow',
+        'QueueManagement',
+        'AgentDesk',
+        'PromptLibrary',
+        'BusinessHours',
+        'DidInventory',
+        'CallAnalytics',
+        'HistoricalReports',
+        'LiveMonitoring',
+        'CallRecording',
+        'CustomerProfile',
+        'CrmBridge',
+        'ApiIntegration',
+        'NotificationHub',
+        'RoleAccess',
+        'AuditTrail',
+        'TenantAdmin',
+        'SystemConfig',
+    ];
+
     protected function columnsForView(string $view): array
     {
         return match ($view) {
@@ -229,15 +250,7 @@ trait LoadsIvrModuleData
 
     protected function tableForModule(string $module): string
     {
-        // $module is a PascalCase value produced by moduleKeyForSlug(); validate against
-        // config-view entries only so non-tabular modules (queues/agents/calls) are rejected.
-        $configModuleKeys = array_values(array_filter(
-            IvrModuleController::SLUG_MAP,
-            static fn (string $slug) => (IvrModuleController::MODULE_META[$slug]['view'] ?? '') === 'config',
-            ARRAY_FILTER_USE_KEY
-        ));
-
-        if (! in_array($module, $configModuleKeys, true)) {
+        if (! in_array($module, $this->allowedModules)) {
             abort(404, 'Invalid module');
         }
 
