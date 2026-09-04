@@ -51,16 +51,17 @@ class BaseLegacyController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $accountId = $this->accountId();
         try {
             $service = $this->resolveService($request);
-            $result = $service->index($this->accountId(), $request->input('q'));
+            $result = $service->index($accountId, $request->input('q'));
 
             return response()->json($result, $result['ok'] ? 200 : ($result['code'] ?? 422));
         } catch (\Throwable $e) {
             Log::error('IVR legacy endpoint failure', [
                 'module' => $request->route('module'),
                 'op' => 'index',
-                'account_id' => $this->accountId(),
+                'account_id' => $accountId,
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -71,16 +72,17 @@ class BaseLegacyController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $accountId = $this->accountId();
         try {
             $service = $this->resolveService($request);
-            $result = $service->store($this->accountId(), $request->all());
+            $result = $service->store($accountId, $request->all());
 
             return response()->json($result, $result['ok'] ? 200 : ($result['code'] ?? 422));
         } catch (\Throwable $e) {
             Log::error('IVR legacy endpoint failure', [
                 'module' => $request->route('module'),
                 'op' => 'store',
-                'account_id' => $this->accountId(),
+                'account_id' => $accountId,
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -91,17 +93,18 @@ class BaseLegacyController extends Controller
 
     public function update(Request $request): JsonResponse
     {
+        $accountId = $this->accountId();
         try {
             $service = $this->resolveService($request);
             $id = (int) $request->input('id');
-            $result = $service->update($this->accountId(), $id, $request->all());
+            $result = $service->update($accountId, $id, $request->all());
 
             return response()->json($result, $result['ok'] ? 200 : ($result['code'] ?? 422));
         } catch (\Throwable $e) {
             Log::error('IVR legacy endpoint failure', [
                 'module' => $request->route('module'),
                 'op' => 'update',
-                'account_id' => $this->accountId(),
+                'account_id' => $accountId,
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -112,17 +115,18 @@ class BaseLegacyController extends Controller
 
     public function destroy(Request $request): JsonResponse
     {
+        $accountId = $this->accountId();
         try {
             $service = $this->resolveService($request);
             $id = (int) $request->input('id');
-            $result = $service->destroy($this->accountId(), $id);
+            $result = $service->destroy($accountId, $id);
 
             return response()->json($result, $result['ok'] ? 200 : ($result['code'] ?? 422));
         } catch (\Throwable $e) {
             Log::error('IVR legacy endpoint failure', [
                 'module' => $request->route('module'),
                 'op' => 'destroy',
-                'account_id' => $this->accountId(),
+                'account_id' => $accountId,
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -133,16 +137,17 @@ class BaseLegacyController extends Controller
 
     public function sync(Request $request): JsonResponse
     {
+        $accountId = $this->accountId();
         try {
             $service = $this->resolveService($request);
-            $result = $service->sync($this->accountId(), $request->all());
+            $result = $service->sync($accountId, $request->all());
 
-            return response()->json($result, $result['ok'] ? 202 : ($result['code'] ?? 422));
+            return response()->json($result, $result['ok'] ? ($result['code'] ?? 200) : ($result['code'] ?? 422));
         } catch (\Throwable $e) {
             Log::error('IVR legacy endpoint failure', [
                 'module' => $request->route('module'),
                 'op' => 'sync',
-                'account_id' => $this->accountId(),
+                'account_id' => $accountId,
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -153,11 +158,14 @@ class BaseLegacyController extends Controller
 
     public function export(Request $request): JsonResponse
     {
+        $accountId = $this->accountId();
         try {
             $service = $this->resolveService($request);
-            $result = $service->index($this->accountId(), $request->input('q'));
-            if (isset($result['meta'])) {
+            $result = $service->index($accountId, $request->input('q'));
+
+            if ($result['ok']) {
                 $result['meta']['cap'] = 100;
+                $result['meta']['note'] = 'Export is capped at 100 rows; results may be truncated.';
             }
 
             return response()->json($result, $result['ok'] ? 200 : ($result['code'] ?? 422));
@@ -165,7 +173,7 @@ class BaseLegacyController extends Controller
             Log::error('IVR legacy endpoint failure', [
                 'module' => $request->route('module'),
                 'op' => 'export',
-                'account_id' => $this->accountId(),
+                'account_id' => $accountId,
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);

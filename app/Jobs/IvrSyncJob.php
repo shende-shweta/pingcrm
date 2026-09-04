@@ -27,6 +27,6 @@ class IvrSyncJob implements ShouldQueue
             'payload_keys' => array_keys($this->payload),
         ]);
 
-        // @todo Redmine #17 (Open Question #1): replace with confirmed remote sync target before v1 cutover.
+        // @todo Redmine #17 (Open Question #1): sync target TBD — replace this stub once the sync destination is confirmed.
     }
 }

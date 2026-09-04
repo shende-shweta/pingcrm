@@ -11,18 +11,19 @@ use Illuminate\Support\Facades\DB;
 trait LoadsIvrModuleData
 {
     private array $allowedModules = [
-        'agent-desk',
-        'business-hours',
-        'call-queues',
-        'ivr-menus',
-        'voice-mailboxes',
-        'holiday-schedules',
-        'time-conditions',
-        'ring-groups',
-        'announcements',
-        'music-on-hold',
-        'outbound-routes',
-        'trunks',
+        'CallFlow',
+        'PromptLibrary',
+        'BusinessHours',
+        'DidInventory',
+        'CallRecording',
+        'CustomerProfile',
+        'CrmBridge',
+        'ApiIntegration',
+        'NotificationHub',
+        'RoleAccess',
+        'AuditTrail',
+        'TenantAdmin',
+        'SystemConfig',
     ];
 
     protected function columnsForView(string $view): array
@@ -111,7 +112,7 @@ trait LoadsIvrModuleData
         return $query->orderBy('q.name')->get()->map(fn ($r) => [
             'id' => $r->id,
             'name' => $r->name,
-            'organization' => $r->organization_name ?? '—',
+            'organization' => $r->organization_name ?? '\u2014',
             'waiting' => (int) $r->waiting,
             'longest_wait' => $this->formatModuleDuration((int) $r->longest_wait_sec),
             'agents' => (int) $r->agents_available,
@@ -144,8 +145,8 @@ trait LoadsIvrModuleData
             'name' => $r->name,
             'extension' => $r->extension,
             'status' => $r->status,
-            'organization' => $r->organization_name ?? '—',
-            'queue' => $r->queue_name ?? '—',
+            'organization' => $r->organization_name ?? '\u2014',
+            'queue' => $r->queue_name ?? '\u2014',
             'calls_today' => (int) $r->calls_today,
         ])->all();
     }
@@ -169,11 +170,11 @@ trait LoadsIvrModuleData
         return $query->orderByDesc('c.started_at')->limit(50)->get()->map(fn ($r) => [
             'id' => $r->external_id,
             'caller' => $r->caller,
-            'organization' => $r->organization_name ?? '—',
-            'queue' => $r->queue_name ?? '—',
-            'agent' => $r->agent_name ?? '—',
+            'organization' => $r->organization_name ?? '\u2014',
+            'queue' => $r->queue_name ?? '\u2014',
+            'agent' => $r->agent_name ?? '\u2014',
             'duration' => $this->formatModuleDuration((int) $r->duration_sec),
-            'disposition' => $r->disposition ?? '—',
+            'disposition' => $r->disposition ?? '\u2014',
             'started_at' => Carbon::parse($r->started_at)->format('Y-m-d H:i:s'),
         ])->all();
     }
@@ -232,9 +233,9 @@ trait LoadsIvrModuleData
 
                 return [
                     'id' => $r->id,
-                    'name' => $r->name ?? '—',
+                    'name' => $r->name ?? '\u2014',
                     'summary' => is_string($summary) ? $summary : json_encode($summary),
-                    'updated_at' => isset($r->updated_at) ? Carbon::parse($r->updated_at)->format('Y-m-d H:i') : '—',
+                    'updated_at' => isset($r->updated_at) ? Carbon::parse($r->updated_at)->format('Y-m-d H:i') : '\u2014',
                 ];
             })->all();
         } catch (\Throwable $e) {
@@ -244,9 +245,7 @@ trait LoadsIvrModuleData
 
     protected function tableForModule(string $module): string
     {
-        // $module is PascalCase (e.g. AgentDesk). Convert to slug to validate against the kebab-case allowlist.
-        $slug = strtolower(preg_replace('/([a-z])([A-Z])/', '$1-$2', $module));
-        if (! in_array($slug, $this->allowedModules)) {
+        if (! in_array($module, $this->allowedModules)) {
             abort(404, 'Invalid module');
         }
 
@@ -258,7 +257,7 @@ trait LoadsIvrModuleData
     protected function formatModuleDuration(int $seconds): string
     {
         if ($seconds <= 0) {
-            return '—';
+            return '\u2014';
         }
         $m = intdiv($seconds, 60);
         $s = $seconds % 60;

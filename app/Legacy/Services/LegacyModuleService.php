@@ -113,6 +113,12 @@ class LegacyModuleService
     {
         $result = $this->service->sync($accountId, $input);
 
-        return array_merge(['ok' => true], $result);
+        return [
+            'ok' => true,
+            'code' => 202,
+            'jobId' => $result['jobId'],
+            'status' => $result['status'],
+            'implemented' => $result['implemented'],
+        ];
     }
 }

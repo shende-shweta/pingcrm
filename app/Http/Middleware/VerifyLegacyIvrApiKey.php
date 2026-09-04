@@ -10,10 +10,14 @@ class VerifyLegacyIvrApiKey
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $configuredKey = config('ivr.legacy_api_key', '');
+        $configured = config('ivr.legacy_api_key', '');
 
-        if ($configuredKey !== '' && $request->header('X-IVR-API-Key') !== $configuredKey) {
-            return response()->json(['ok' => false, 'error' => 'Unauthorized', 'code' => 401], 401);
+        if ($configured !== '' && $request->header('X-IVR-API-Key') !== $configured) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'Unauthorized',
+                'code' => 401,
+            ], 401);
         }
 
         return $next($request);
