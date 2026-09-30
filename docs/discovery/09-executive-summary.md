@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** PingCRM-Discovery-30-Sep · **Generated:** 30/09/2026, 12:39:22
+**Project:** PingCRM-Discovery-30-Sep · **Generated:** 30/09/2026, 12:41:06
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 7 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 8 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -17,6 +17,7 @@
 | 5 | Testing & Quality Assurance Analysis | — |
 | 6 | Security Analysis | — |
 | 7 | Performance & Sustainability Analysis | — |
+| 8 | Technical Debt | — |
 
 ---
 
@@ -395,3 +396,41 @@ Report saved to `docs/discovery/06-security.md`. The orchestration UI will conve
 - **Pruning 141 dead legacy frontend files (~100k lines)** cuts Vite build time roughly in half and reduces the production JavaScript bundle, improving both CI efficiency and end-user page load.
 - **Adding Node dependency caching to CI** saves 30–60 seconds per pipeline run, reducing compute cost and energy consumption across daily/nightly builds.
 - **Parallelizing IVR Hub dashboard queries** reduces the default landing page load time by ~50%, from ~12 sequential DB round-trips to ~3 parallel batches.","stop_reason":"end_turn","session_id":"8424fc9d-3a8a-443e-998f-ca9185dbc89c","total_cost_usd":2.5991355,"usage":{"input_tokens":26,"cache_creation_input_tokens":104550,"cache_read_input_tokens":1851573,"output_tokens":24766,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":104550,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":2107,"cache_read_input_tokens":103787,"cache_creation_input_tokens":7807,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":7807},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":8489,"outputTokens":16,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.008569,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":26,"outputTokens":24766,"cacheReadInputTokens":1851573,"cacheCreationInputTokens":104550,"webSearchRequests":0,"costUSD":2.5905665,"contextWindow":200000,"maxOutputTokens":64000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"f2b48636-5ec7-49fe-bdec-0eb942069533"}
+
+---
+
+## 8. Technical Debt
+
+> **Executive Summary**
+>
+> The pingcrm repository is a Laravel 11 / Inertia.js / React 19 demo application that has been extended with a large generated \"legacy IVR enterprise\" layer comprising ~79k lines of PHP and ~100k lines of TypeScript. The IVR layer introduces severe technical debt: 12 \"GodService\" classes with hardcoded API keys and `extract()` calls, 12 repository files with SQL injection vulnerabilities via string-concatenated LIKE clauses, 759-line duplicated IVR controllers (84 files totalling ~61k LOC), a committed config file (`config/ivr_legacy.php`) containing plaintext CRM credentials and a master API key, and 540 blocking `sleep()` calls. Test coverage is minimal — only 2 feature tests and 1 trivial unit test for PHP, plus a single smoke test for the frontend. No Docker/devcontainer configuration exists, no CODEOWNERS or PR template is present, and PHPStan is pinned at level 1. The codebase is **not ready** for an agentic harness today: the IVR layer's highly duplicated, machine-generated structure is paradoxically enumerable (good for agents) but unsafe to automate against without CI quality gates and secret remediation first. Immediate priorities are credential removal, SQL injection fixes, and CI test-coverage expansion.
+
+## Readiness Benchmark Ratings
+
+| # | Dimension | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|
+| D1 | Code Repository Health | all checks pass | 1–2 gaps | 3+ gaps / no CI | `.gitignore` present, 4 CI workflows, lock files committed; no CODEOWNERS, no PR template, no branch-protection signals | <span class=\"rating rating-moderate\">Moderate</span> |
+| D2 | Third-Party Tool Usage | mostly wired & current | some unused/unwired | many unused/unmaintained | 12 GodService files with hardcoded API keys committed in source; `sanctum` declared but IVR API routes have no auth middleware; `react-router-dom`, `@popperjs/core`, `uuid` declared but unused; `fakerphp/faker` in production `require` | <span class=\"rating rating-high-risk\">High Risk</span> |
+| D3 | AI Tool / Agentic Readiness | ready | partial | not ready | IVR layer is highly enumerable (84 identical controller files, 12 services, 12 repos — agent-targetable). However, no CI quality gate beyond basic `php artisan test`, no characterization tests for the IVR surface, and secrets in source block safe automation | <span class=\"rating rating-moderate\">Moderate</span> |
+| D4 | Database Usage | sound | some gaps | no constraints / shared flat schema | Core CRM tables have indexes and soft-deletes. IVR dashboard tables use FK constraints. IVR legacy tables (46) have no foreign keys, no unique constraints, JSON payload with no schema enforcement. `tenant_id` hardcoded to 1 in controllers | <span class=\"rating rating-high-risk\">High Risk</span> |
+| D5 | Development Environment | reproducible | partial | manual / fragile | `.env.example` present and comprehensive. No Dockerfile/docker-compose/devcontainer. ESLint + Prettier configured but not enforced in CI or pre-commit. PHPStan at level 1. `printWidth: 10000` effectively disables Prettier line wrapping. No pre-commit hooks | <span class=\"rating rating-high-risk\">High Risk</span> |
+
+## 8.8 Actions Required
+
+| Gap | Action | Rating | Priority |
+|---|---|---|---|
+| Plaintext credentials in `config/ivr_legacy.php` | Move to `.env` vars; rotate all exposed credentials | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| Hardcoded API keys in 12 GodService files | Replace with `config()` + env vars; rotate keys | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| SQL injection in 12 Legacy Repository files (~480 sites) | Parameterize all DB queries | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| `extract($payload)` — ~4,940 unsafe calls | Remove extract(); use explicit key access | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| 46 IVR tables with no FK/unique constraints | Add FK constraints and unique indexes via migration | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| IVR API routes have no auth middleware | Add `auth:sanctum` to `ivr-legacy` route group | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| No containerization | Initialize Sail or create docker-compose + devcontainer | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| Minimal test coverage (3 PHP tests, 1 JS test) | Add characterization tests; enforce coverage threshold in CI | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-high\">High</span> |
+| No CODEOWNERS or PR template | Add both to `.github/` | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| PHPStan at level 1 | Raise to level 5+ with baseline | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| `fakerphp/faker` in `require` | Move to `require-dev` | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| 540 `sleep(1)` blocking calls | Remove sleep() from GodServices | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Prettier `printWidth: 10000` | Set to 100–120; enforce in CI | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-medium\">Medium</span> |
+| 2,835 LOC duplicated Legacy Helpers | Consolidate to single transformer method | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-low\">Low</span> |
+| Unused JS deps (`react-router-dom`, `@popperjs/core`, `uuid`) | Remove from package.json | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-low\">Low</span> |","stop_reason":"end_turn","session_id":"1738166e-0eda-4b58-9dcb-cf2f18e6614c","total_cost_usd":2.511739,"usage":{"input_tokens":23,"cache_creation_input_tokens":111432,"cache_read_input_tokens":1536908,"output_tokens":24726,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":111432,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":2281,"cache_read_input_tokens":108460,"cache_creation_input_tokens":7910,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":7910},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":10595,"outputTokens":21,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.0107,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":23,"outputTokens":24726,"cacheReadInputTokens":1536908,"cacheCreationInputTokens":111432,"webSearchRequests":0,"costUSD":2.501039,"contextWindow":200000,"maxOutputTokens":64000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"7e087392-78d8-4879-aba5-eb4ed66a71b5"}
