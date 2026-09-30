@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** PingCRM-Discovery-30-Sep · **Generated:** 30/09/2026, 12:37:18
+**Project:** PingCRM-Discovery-30-Sep · **Generated:** 30/09/2026, 12:39:22
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 6 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 7 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -14,8 +14,9 @@
 | 2 | Code Quality & Complexity Analysis | — |
 | 3 | Frontend Modernization Analysis | — |
 | 4 | Backend Modernization Analysis | — |
-| 5 | Security Analysis | — |
-| 6 | Performance & Sustainability Analysis | — |
+| 5 | Testing & Quality Assurance Analysis | — |
+| 6 | Security Analysis | — |
+| 7 | Performance & Sustainability Analysis | — |
 
 ---
 
@@ -265,7 +266,51 @@
 
 ---
 
-## 5. Security Analysis
+## 5. Testing & Quality Assurance Analysis
+
+> **Executive Summary**
+>
+> The pingcrm codebase — a Laravel 11 + React 19/Inertia.js application with a large IVR enterprise module — has critically low test coverage across both backend and frontend layers. Only 4 test files exist (3 PHP, 1 JS), covering just 2 of 89 concrete controllers with 8 real test assertions. The entire IVR domain (82 controllers, 12 GodServices totalling 4,476 LOC, 12 repositories, 81 legacy API routes) ships with zero automated tests. Authentication, user management, the IVR hub dashboard (380 LOC of complex DB aggregation), report generation with CSV export, and all 5 Legacy Helpers (including crypto) are entirely unprotected. On the frontend, 769 React/TSX components including 522 page components have no component or E2E tests — only a single placeholder `expect(true).toBe(true)` file. CI runs PHPUnit on PRs via `php artisan test` (all suites) but explicitly disables coverage collection (`coverage: none`) and does not run Vitest, so the frontend is never gate-checked. PHPStan (Level 1 via Larastan) and a coding standards workflow provide baseline static analysis. No coverage reports, no integration tests for external services, and no E2E framework exist.
+
+## 5.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Untested Critical Logic | Critical modules with zero tests | 0 | 1–3 | >3 | >10 modules (auth, users, IVR hub, reports, 80 IVR controllers, 12 GodServices, 12 repositories, helpers, IvrAccountContext) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H2 | Low Test Coverage | Overall coverage % | >80% | 50–80% | <50% | <5% (estimated from test-to-source ratio; no coverage report exists) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H3 | Missing Integration Tests | Boundaries covered % | >70% | 30–70% | <30% | N/A — no external service integrations observed | <span class=\"rating rating-good\">Good</span> |
+| H4 | Missing Contract Tests | APIs with contract tests % | >80% | 40–80% | <40% | 0% (0 of 82 API routes have contract or schema tests) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H5 | Flaky / Skipped Tests | Skipped/flaky test count | 0 | 1–5 | >5 | 0 | <span class=\"rating rating-good\">Good</span> |
+| H6 | No CI Test Gate | Tests enforced in CI | Required gate | Runs, not required | No CI test run | Backend PHPUnit runs on PRs; frontend Vitest not in CI | <span class=\"rating rating-moderate\">Moderate</span> |
+| H7 | No E2E Tests (additional) | E2E test files covering critical flows | >0 | — | 0 | 0 files; no Playwright, Cypress, or Dusk configured | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H8 | Placeholder Tests (additional) | Tests with no real business assertions | 0 | 1–2 | >2 | 2 (ExampleTest.php + smoke.test.ts) | <span class=\"rating rating-moderate\">Moderate</span> |
+| C1 | Coverage Reporting Absent (context) | Coverage tool configured and reports published | Clover/lcov published | Tool installed, not published | No coverage tool | `coverage: none` in CI; no Clover/lcov in repo | <span class=\"rating rating-high-risk\">High Risk</span> |
+| C2 | IVR Legacy API Untested (context) | Feature tests for IVR legacy API routes | >70% | 30–70% | <30% | 0% (0 of 81 generated API routes tested) | <span class=\"rating rating-high-risk\">High Risk</span> |
+
+## 5.4 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H1 — Untested Critical Logic | Add Feature tests for auth, users, IVR hub, reports controllers; add unit tests for IvrAccountContext and LegacyIvrCrypto; add component tests for Login and Hub pages | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H2 — Low Test Coverage | Enable pcov coverage in CI; set initial 30% floor gate; target 75% line coverage within 90 days by prioritizing high-risk controllers | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H4 — Missing Contract Tests | Add Feature tests asserting JSON response structure for IVR legacy API endpoints; add Inertia assertion tests for all page routes; add CSV output validation | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H6 — No CI Test Gate | Add `npm run test` step to CI workflow; configure branch protection requiring tests + static-analysis to pass before merge | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| H7 — No E2E Tests | Install Playwright; write E2E tests for login, contact CRUD, and IVR dashboard flows; add to CI as separate job | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H8 — Placeholder Tests | Replace ExampleTest.php with real unit test for IvrAccountContext; replace smoke.test.ts with component render test after installing @testing-library/react | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-low\">Low</span> |
+| C1 — Coverage Reporting Absent | Change `coverage: none` to `coverage: pcov` in CI; add `--coverage-clover` flag; upload artifact unconditionally; add @vitest/coverage-v8 | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| C2 — IVR Legacy API Untested | Add Feature tests for all 12 IVR modules' CRUD API endpoints starting with AgentDesk; assert JSON structure and tenant isolation | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+
+## 5.5 Expected Outcomes
+
+- **Critical auth and user management paths protected** — login, session regeneration, owner privileges, and demo-user guard verified on every PR, preventing privilege escalation and access control regressions.
+- **IVR dashboard and reporting logic verified before refactors** — tenant scoping, data aggregation, filtering, and CSV export covered by Feature tests, enabling safe modernization of GodServices and elimination of raw SQL.
+- **IVR legacy API endpoints covered by Feature and contract tests** — response schemas validated automatically, preventing silent breaking changes to API consumers; SQL injection vectors in legacy controllers detected by test assertions.
+- **CI catches both backend and frontend regressions on every change** — Vitest added to pipeline, coverage reported and enforced, branch protection requiring green checks before merge.
+- **Coverage reporting enables data-driven QA decisions** — Clover/lcov artifacts provide visibility into actual coverage, supporting incremental improvement from <5% toward the 75% target with measurable sprint-over-sprint progress.","stop_reason":"end_turn","session_id":"c5982af2-841d-4d30-9b1c-76bb03d79f72","total_cost_usd":3.2118199999999995,"usage":{"input_tokens":18,"cache_creation_input_tokens":144088,"cache_read_input_tokens":1443344,"output_tokens":41454,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":144088,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":2122,"cache_read_input_tokens":146130,"cache_creation_input_tokens":743,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":743},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":12748,"outputTokens":16,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.012828,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":18,"outputTokens":41454,"cacheReadInputTokens":1443344,"cacheCreationInputTokens":144088,"webSearchRequests":0,"costUSD":3.1989919999999996,"contextWindow":200000,"maxOutputTokens":64000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"98033816-627f-4899-b420-e43d88301701"}
+
+---
+
+## 6. Security Analysis
 
 > **Executive Summary**
 >
@@ -307,7 +352,7 @@ Report saved to `docs/discovery/06-security.md`. The orchestration UI will conve
 
 ---
 
-## 6. Performance & Sustainability Analysis
+## 7. Performance & Sustainability Analysis
 
 > **Executive Summary**
 >
