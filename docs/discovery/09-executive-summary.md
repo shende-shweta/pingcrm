@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** PingCRM-Discovery · **Generated:** 30/09/2026, 11:48:49
+**Project:** PingCRM-Discovery · **Generated:** 30/09/2026, 11:50:12
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 5 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 6 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -13,8 +13,9 @@
 | 1 | Architecture & Design Analysis | — |
 | 2 | Code Quality & Complexity Analysis | — |
 | 3 | Testing & Quality Assurance Analysis | — |
-| 4 | Performance & Sustainability Analysis | — |
-| 5 | Technical Debt | — |
+| 4 | Security Analysis | — |
+| 5 | Performance & Sustainability Analysis | — |
+| 6 | Technical Debt | — |
 
 ---
 
@@ -163,7 +164,50 @@
 
 ---
 
-## 4. Performance & Sustainability Analysis
+## 4. Security Analysis
+
+> **Executive Summary**
+>
+> The pingcrm codebase has a **severely compromised security posture** driven primarily by the legacy IVR subsystem. Across 80 IVR controllers, raw SQL strings are built via direct string concatenation of user input (`$q`), creating pervasive SQL injection vectors. All 12 legacy \"GodService\" files call `extract($payload)` on unvalidated request data (540 instances), enabling variable injection. Hardcoded API keys (`LEGACY_IVR_KEY_*`) are committed in 12 service files, and `config/ivr_legacy.php` contains a master API key, plaintext Salesforce credentials, and an auth-bypass allow-list. On the frontend, the Pagination component uses `dangerouslySetInnerHTML` with server-supplied label data, and the Login page ships hardcoded demo credentials. The CRM controllers (Users, Organizations, Contacts) follow better practices with Eloquent ORM and Laravel validation, but globally disable mass-assignment protection via `Model::unguard()`. No security headers (CSP, HSTS, X-Frame-Options) are configured, and CI lacks any SAST or dependency-vulnerability scanning step. Both backend and frontend layers were reviewed.
+
+## 6.1 Security Benchmark Ratings
+
+| # | Security KPI | Target | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Critical Vulnerabilities | 0 | 0 | 1 | >1 | 3 | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H2 | High Vulnerabilities | 0 | <5 | 5–10 | >10 | 4 | <span class=\"rating rating-good\">Good</span> |
+| H3 | Medium Vulnerabilities | low | <20 | 20–50 | >50 | 8 | <span class=\"rating rating-good\">Good</span> |
+| H4 | Vulnerability Density | <0.5/KLOC | <0.5 | 0.5–1.0 | >1.0 | 0.08/KLOC | <span class=\"rating rating-good\">Good</span> |
+| H5 | OWASP Top 10 Compliance | >95% | >95% | 80–95% | <80% | 10% clean (1/10) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H6 | Critical/High Vulnerable Deps | 0 | 0 | 1 | >1 | 0 | <span class=\"rating rating-good\">Good</span> |
+| H7 | Outdated Dependencies | <10% | <10% | 10–25% | >25% | ~3% (1 outdated) | <span class=\"rating rating-good\">Good</span> |
+| H8 | End-of-Life Dependencies | 0 | 0 | 1–5 | >5 | 0 | <span class=\"rating rating-good\">Good</span> |
+
+## 6.5 Actions Required
+
+| Finding | Action | Rating | Priority |
+|---|---|---|---|
+| SQL Injection (80 controllers + 12 repositories) | Replace all raw SQL string concatenation with parameterized queries or Eloquent; add PHPStan lint rule to ban `DB::select` with variables | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| Variable Injection via extract() (12 GodServices, 540 calls) | Remove all `extract($payload)` calls; use explicit variable assignment; ban `extract()` via PHPStan | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| Hardcoded Secrets (12 service files + config) | Rotate all keys/passwords immediately; move to `.env`; scrub git history with BFG/filter-repo; add gitleaks pre-commit hook | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| Broken Access Control (80 IVR controllers) | Implement Laravel Policies; replace hardcoded `$tenantId = 1` with user-scoped tenant; remove IP-based auth bypass | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| Global Mass Assignment Disabled | Remove `Model::unguard()`; define `$fillable` on all models; audit all `create()`/`update()` calls | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| Debug Mode & Insecure Session Config | Set `APP_DEBUG=false`, `SESSION_ENCRYPT=true` in production; reduce session lifetime; disable `allow_sql_debug` | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| Missing Security Headers | Add middleware for CSP, HSTS, X-Frame-Options, X-Content-Type-Options; publish and configure `config/cors.php` | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| XSS via dangerouslySetInnerHTML (Pagination.tsx) | Replace with text content or sanitize with DOMPurify | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Hardcoded Demo Credentials in Frontend | Gate behind `APP_ENV=demo`; remove from production builds | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Weak Password Policy | Add `Password::min(8)->mixedCase()->numbers()` validation | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Image Controller Path Traversal | Restrict `{path}` regex; add Glide URL signatures; whitelist query params | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Error Message Leakage | Replace `$e->getMessage()` with generic responses; log exceptions server-side | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| No SAST / Dependency Scanning in CI | Add `composer audit`, `npm audit`, PHPStan security rules, and secret detection to CI pipeline | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Outdated react-router-dom v5.2.0 | Upgrade to React Router v6+; wire `npm audit` into CI | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| Missing Frontend CSP | Add CSP meta tag or header with nonce support for Vite | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+
+Full report saved to `docs/discovery/06-security.md` (15 findings across 3 Critical, 4 High, 8 Medium severity levels; the PDF will be generated automatically by the orchestration UI).","stop_reason":"end_turn","session_id":"004b1423-4cef-4f89-9acd-90468122584b","total_cost_usd":2.5949694999999995,"usage":{"input_tokens":22,"cache_creation_input_tokens":102518,"cache_read_input_tokens":1370345,"output_tokens":35046,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":102518,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":3029,"cache_read_input_tokens":99177,"cache_creation_input_tokens":10592,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":10592},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":8282,"outputTokens":15,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.008357,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":22,"outputTokens":35046,"cacheReadInputTokens":1370345,"cacheCreationInputTokens":102518,"webSearchRequests":0,"costUSD":2.5866124999999993,"contextWindow":200000,"maxOutputTokens":64000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"dd8a0906-09e8-4a4e-bd08-2fadf56a6c67"}
+
+---
+
+## 5. Performance & Sustainability Analysis
 
 > **Executive Summary**
 >
@@ -210,7 +254,7 @@
 
 ---
 
-## 5. Technical Debt
+## 6. Technical Debt
 
 > **Executive Summary**
 >
