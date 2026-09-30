@@ -1,10 +1,10 @@
 # Discovery Executive Summary
 
-**Project:** PingCRM-Discovery · **Generated:** 30/09/2026, 11:52:10
+**Project:** PingCRM-Discovery · **Generated:** 30/09/2026, 11:53:06
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 7 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 8 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
@@ -13,10 +13,11 @@
 | 1 | Architecture & Design Analysis | — |
 | 2 | Code Quality & Complexity Analysis | — |
 | 3 | Frontend Modernization Analysis | — |
-| 4 | Testing & Quality Assurance Analysis | — |
-| 5 | Security Analysis | — |
-| 6 | Performance & Sustainability Analysis | — |
-| 7 | Technical Debt | — |
+| 4 | Backend Modernization Analysis | — |
+| 5 | Testing & Quality Assurance Analysis | — |
+| 6 | Security Analysis | — |
+| 7 | Performance & Sustainability Analysis | — |
+| 8 | Technical Debt | — |
 
 ---
 
@@ -185,7 +186,69 @@
 
 ---
 
-## 4. Testing & Quality Assurance Analysis
+## 4. Backend Modernization Analysis
+
+> **Executive Summary**
+>
+> The Ping CRM codebase contains a well-structured original CRM layer (Users, Contacts, Organizations) alongside a massive IVR Enterprise legacy surface that introduces severe backend modernization risks. The IVR subsystem — comprising 80+ controllers, 12 \"God Service\" classes, and 5 static helper libraries — exhibits critical security vulnerabilities including SQL injection via string concatenation in 80 controller files, 4,940 `extract($payload)` calls that materialize untrusted user input as local variables, and 12 hardcoded API keys committed to source. An API surface of 81 legacy routes is exposed without any authentication middleware. No OpenAPI specification, API versioning, or contract testing exists. The CRM controllers lack a service layer, and the IVR controllers rely on bloated God Service objects with mutable static state and blocking `sleep()` calls. No caching layer is present anywhere in the application.
+
+## 4.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | Dynamic Variable Creation | Dynamic-var-from-input occurrences | 0 | 1–10 | >10 | 4,940 occurrences in 92 files | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H2 | Global Mutable State | Globals / mutable static state | 0 | 1–5 | >5 | 12 classes with `public static $sharedRuntimeCache` | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H3 | Direct SQL Outside Data Layer | Data-layer compliance % | >90% | 60–90% | <60% | ~9% (83 of 91 controllers have direct DB calls) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H4 | Static / Singleton Abuse | Business-logic static/singleton classes | 0 | 1–5 | >5 | 12 GodService classes with static state + `new` instantiation | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H5 | Missing Service Layer | Handlers with inline business logic | <10 | 10–20 | >20 | 85+ (80 IVR + 5 CRM controllers with inline logic) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H6 | API Sprawl | Documented & governed endpoints % | >90% | 80–90% | <80% | 0% — 81 legacy API routes with no documentation or governance | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H7 | Missing API Governance | Governance compliance % | 100% | 90–99% | <90% | 0% — no OpenAPI spec, no API linting, no contract tests | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H8 | Weak Application Architecture | Modules following declared architecture % | >80% | 50–80% | <50% | ~10% — IVR subsystem completely violates MVC layering | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H9 | Missing Module Inventory | Circular dependency count | 0 | 1–3 | >3 | 0 — flat dependency graph (controllers → GodServices → DB) | <span class=\"rating rating-good\">Good</span> |
+| H10 | Database Schema Weakness | FK indexes % + migrations with rollback % | Both >90% | One <90% | Both <90% | FK indexes 100% (on actual FK constraints); rollback 100%; but 46 legacy tables lack FK constraints entirely | <span class=\"rating rating-moderate\">Moderate</span> |
+| H11 | Middleware Weakness | Required middleware present + ordered % | 100% | 80–99% | <80% | ~55% — 81 legacy API routes have no auth middleware; no security headers package; no structured request logging | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H12 | Auth & Authorization Weakness | Protected routes guarded % + hashing algo | 100% + bcrypt/argon2 | One gap | Both bad | ~58% routes guarded (web ✓, 81 API routes ✗) + bcrypt via Hash::make ✓; 80 IVR controllers use hardcoded tenantId=1 (IDOR risk) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H13 | Backend Security Vulnerabilities | Injection + hardcoded secrets count | 0 each | 1–3 total | >3 total | 80 SQL injection patterns + 12 hardcoded API keys = 92 total | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H14 | Performance & Caching Gaps | N+1 patterns found | 0 | 1–5 | >5 | 0 traditional N+1 patterns; no caching layer exists | <span class=\"rating rating-good\">Good</span> |
+| H15 | Outdated & Vulnerable Dependencies | Critical/High CVEs found | 0 | 1–3 | >3 | 0 — `roave/security-advisories` blocks vulnerable packages; all dependencies current | <span class=\"rating rating-good\">Good</span> |
+| H16 | Secrets & Configuration in Source | Hardcoded secrets / .env committed | 0 | 1–2 | >2 | 12 hardcoded API keys in GodService source files | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H17 | Backend Code Quality | Linter in CI + max cyclomatic complexity | Both good | One gap | Both bad | PHPStan at level 1 of 9 (minimal); CI enforces lint + static analysis + tests ✓ | <span class=\"rating rating-moderate\">Moderate</span> |
+| H18 | Blocking Synchronous I/O (additional) | sleep() calls in request path (target 0) | 0 | 1–10 | >10 | 540 `sleep(1)` calls across 12 GodService files | <span class=\"rating rating-high-risk\">High Risk</span> |
+
+## 4.4 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H13 — Backend Security Vulnerabilities | Replace all 80 string-concatenated `DB::select()` calls with parameterized queries; remove `$e->getMessage()` from responses; add CI rule to prevent raw SQL interpolation | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H1 — Dynamic Variable Creation | Replace 4,940 `extract($payload)` calls with typed Form Requests; add PHPStan/Rector rule to flag future `extract()` usage | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H11 — Middleware Weakness | Add `auth:sanctum` middleware to the `ivr-legacy` route group; install security headers package; add structured request logging | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H12 — Auth & Authorization Weakness | Replace hardcoded `tenantId = 1` with authenticated context; add Policies for Organization/Contact/User models; add scoped route-model binding | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H16 — Secrets in Source | Move 12 hardcoded API keys to environment variables; rotate all keys; add git-secrets to CI | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H2 — Global Mutable State | Remove `public static $sharedRuntimeCache` from 12 GodService files; use Laravel Cache with TTL and tenant-scoped keys | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H18 — Blocking Synchronous I/O | Remove 540 `sleep(1)` calls; replace with queued jobs for async sync | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H3 — Direct SQL Outside Data Layer | Create Repository classes; move all DB queries from 83 controllers into repositories | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H5 — Missing Service Layer | Create Service classes for CRM and IVR modules; extract inline business logic from 85+ controllers | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H8 — Weak Architecture | Define target architecture (Controller → Service → Repository); enforce with architectural tests; add ADR | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H4 — Static / Singleton Abuse | Register services in container; replace `new GodService()` with DI; audit/remove Legacy Helpers | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H6 — API Sprawl | Convert legacy routes to RESTful conventions; add API versioning; replace `Route::match` with proper HTTP verbs | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H7 — Missing API Governance | Generate OpenAPI spec; add Spectral linting; add contract tests | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H10 — Database Schema Weakness | Add FK constraints to 46 legacy tables; make `account_id` non-nullable; remove redundant `tenant_id` | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+| H17 — Backend Code Quality | Raise PHPStan to level 5 with baseline; add complexity rules; delete/consolidate 2,835 LOC in Legacy Helpers | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+
+## 4.5 Expected Outcomes
+
+- **SQL injection eliminated:** Parameterized queries across all 80 IVR controllers remove the highest-severity attack vector — unauthenticated SQL injection.
+- **Dynamic variable creation removed:** Typed Form Requests replace `extract()`, giving compile-time visibility into every field a request can contain and preventing variable shadowing attacks.
+- **Authentication coverage at 100%:** All 81 legacy API routes gain `auth:sanctum` middleware, closing the unauthenticated access vector.
+- **IDOR vulnerabilities closed:** Policy-based authorization and scoped route-model binding ensure users can only access their own account's resources.
+- **Secrets removed from source:** 12 API keys moved to environment variables and rotated, eliminating credential exposure through repository access.
+- **Service layer enables reuse:** Business logic extracted from controllers into services can be shared across HTTP, CLI (Artisan), and queue job entry points.
+- **API governance prevents breaking changes:** OpenAPI specification with contract tests ensures API consumers are notified before incompatible changes ship.
+- **Worker pool protected:** Removing 540 `sleep(1)` calls prevents PHP-FPM worker exhaustion and restores normal request throughput.","stop_reason":"end_turn","session_id":"b610f451-0a2e-4129-945d-8cd94630d123","total_cost_usd":3.0538419999999995,"usage":{"input_tokens":21,"cache_creation_input_tokens":125162,"cache_read_input_tokens":1453044,"output_tokens":42633,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":125162,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":3151,"cache_read_input_tokens":130831,"cache_creation_input_tokens":164,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":164},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-opus-4-6":{"inputTokens":21,"outputTokens":42633,"cacheReadInputTokens":1453044,"cacheCreationInputTokens":125162,"webSearchRequests":0,"costUSD":3.044072,"contextWindow":200000,"maxOutputTokens":64000},"claude-haiku-4-5-20251001":{"inputTokens":9700,"outputTokens":14,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.009770000000000001,"contextWindow":200000,"maxOutputTokens":32000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"0627923c-afda-4845-90aa-c34b4a9aff45"}
+
+---
+
+## 5. Testing & Quality Assurance Analysis
 
 > **Executive Summary**
 >
@@ -226,7 +289,7 @@
 
 ---
 
-## 5. Security Analysis
+## 6. Security Analysis
 
 > **Executive Summary**
 >
@@ -269,7 +332,7 @@ Full report saved to `docs/discovery/06-security.md` (15 findings across 3 Criti
 
 ---
 
-## 6. Performance & Sustainability Analysis
+## 7. Performance & Sustainability Analysis
 
 > **Executive Summary**
 >
@@ -316,7 +379,7 @@ Full report saved to `docs/discovery/06-security.md` (15 findings across 3 Criti
 
 ---
 
-## 7. Technical Debt
+## 8. Technical Debt
 
 > **Executive Summary**
 >
