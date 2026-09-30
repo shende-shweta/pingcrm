@@ -1,19 +1,20 @@
 # Discovery Executive Summary
 
-**Project:** PingCRM-Discovery-30-Sep · **Generated:** 30/09/2026, 12:36:16
+**Project:** PingCRM-Discovery-30-Sep · **Generated:** 30/09/2026, 12:36:45
 
 > **Executive Summary**
 >
-> This report consolidates the overall ratings, key findings, and recommended actions from the 4 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
+> This report consolidates the overall ratings, key findings, and recommended actions from the 5 discovery analyses run across this codebase (frontend and backend). Each section below reproduces that analysis's executive view; full evidence and diagrams live in the individual reports.
 
 ## Portfolio Overview
 
 | # | Analysis | Overall Rating |
 |---|---|---|
 | 1 | Architecture & Design Analysis | — |
-| 2 | Backend Modernization Analysis | — |
-| 3 | Security Analysis | — |
-| 4 | Performance & Sustainability Analysis | — |
+| 2 | Code Quality & Complexity Analysis | — |
+| 3 | Backend Modernization Analysis | — |
+| 4 | Security Analysis | — |
+| 5 | Performance & Sustainability Analysis | — |
 
 ---
 
@@ -72,7 +73,72 @@
 
 ---
 
-## 2. Backend Modernization Analysis
+## 2. Code Quality & Complexity Analysis
+
+> **Executive Summary**
+>
+> The pingcrm codebase comprises 319 source files totalling ~181,000 LOC across a Laravel 12 backend (141 PHP files, 77,262 LOC) and a React/TypeScript frontend (137 TS/TSX files, 100,446 LOC). An estimated 84% of the codebase consists of structurally duplicated IVR (Interactive Voice Response) module code: 81 near-identical 759-line PHP controllers, 12 \"GodService\" classes, 133 templated frontend page files, 229 legacy monolith components, and 8 duplicated utility modules. The original Pingcrm application (contacts, organizations, users, dashboard) is cleanly structured, but the IVR layer introduces severe code-quality risks including SQL injection via string concatenation in every IVR controller, 4,400 uses of PHP's `extract()` on unvalidated request data, 12 hardcoded API keys, and mutable static state that would leak memory under long-running process models. Git churn is low (118 total commits) and ownership is concentrated, so defect density and coordination risks are currently minimal — but the extreme duplication means that any bug fix or security patch must be replicated across 80+ files manually.
+
+## 2.1 Benchmark Ratings Summary
+
+| # | Hotspot | Primary KPI | <span class=\"rating rating-good\">Good</span> | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"rating rating-high-risk\">High Risk</span> | Measured | Rating |
+|---|---|---|---|---|---|---|---|
+| H1 | High Cyclomatic Complexity | Max complexity per method | <10 | 10–20 | >20 | ~12 (LoadsIvrModuleData trait, match + query builder chains) | <span class=\"rating rating-moderate\">Moderate</span> |
+| H2 | Large Classes | Largest class/file LOC | <300 | 300–1000 | >1000 | 1,101 LOC (legacyFormatters*.ts); 759 LOC (81 IVR controllers) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H3 | Large Functions | Largest function/method LOC | <50 | 50–200 | >200 | ~50 LOC (loadCallRows in LoadsIvrModuleData) | <span class=\"rating rating-good\">Good</span> |
+| H4 | Business Logic Duplication | Duplicated business logic % | <5% | 5–10% | >10% | ~84% — IVR controller/service/repo/model chain duplicated 12x across domains | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H5 | Duplicate Code (general) | Overall duplicate code % | <5% | 5–10% | >10% | ~84% — 152,798 of 181,029 LOC are near-identical copies | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H6 | High Churn Areas | Monthly changes (top files) | <5 | 5–10 | >10 | ~2 (README.md most changed; 118 total commits) | <span class=\"rating rating-good\">Good</span> |
+| H7 | Defect-Prone Files | Fix commits (hottest file) | 1–3 | 4–5 | >5 | 2 (photo upload fixes are the densest cluster) | <span class=\"rating rating-good\">Good</span> |
+| H8 | Ownership Issues | Top-author ownership % | >80% | 60–80% | <60% | >95% (IVR layer single-author; original Pingcrm: 3 primary authors) | <span class=\"rating rating-good\">Good</span> |
+| H9 (additional) | SQL Injection | Controllers with raw string-concat SQL | 0 | 1–5 | >5 | 83 IVR controllers with DB::select string concatenation | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H10 (additional) | Unsafe extract() | Total extract() call sites | 0 | 1–10 | >10 | 4,400 occurrences across IVR controllers and GodServices | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H11 (additional) | Static Mutable State | GodService classes with static cache | 0 | 1–3 | >3 | 12 GodServices each with public static $sharedRuntimeCache | <span class=\"rating rating-high-risk\">High Risk</span> |
+| H12 (additional) | Hardcoded Secrets | Files with hardcoded API keys | 0 | 1–2 | >2 | 12 GodServices each with hardcoded $apiKey strings | <span class=\"rating rating-high-risk\">High Risk</span> |
+| C1 (context) | Unmanaged Static State | Static arrays accumulating data | 0 | 1–3 | >3 | 12 GodServices — $sharedRuntimeCache never cleared | <span class=\"rating rating-high-risk\">High Risk</span> |
+| C2 (context) | Unbounded Queries | Controllers using ->get() without limits | 0 | 1–5 | >5 | 83 IVR controllers use ->get() on full tables | <span class=\"rating rating-high-risk\">High Risk</span> |
+| C3 (context) | Blocking sleep() | Services with synchronous sleep() | 0 | 1–5 | >5 | All 12 GodServices call sleep(1) in every method (~300 call sites) | <span class=\"rating rating-high-risk\">High Risk</span> |
+| C4 (context) | Laravel Octane / Long-Running | n/a | n/a | n/a | n/a | Not observed: no Octane/Swoole configuration present | <span class=\"rating rating-good\">Good</span> |
+| C5 (context) | Circular References / Closures | n/a | n/a | n/a | n/a | Not observed: no circular references or long-lived listeners | <span class=\"rating rating-good\">Good</span> |
+
+### Hotspot Score breakdown
+
+| Component | Weight | Sub-score (0–100) | Weighted |
+|---|---|---|---|
+| Cyclomatic Complexity | 25% | 50 | 12.5 |
+| Code Churn | 25% | 15 | 3.75 |
+| Defect Density | 20% | 15 | 3.0 |
+| Class/Function Size | 15% | 68 | 10.2 |
+| Business Logic Duplication | 10% | 95 | 9.5 |
+| Developer Ownership Risk | 5% | 10 | 0.5 |
+| **Hotspot Score** | **100%** | | **39 / 100** |
+
+## 2.5 Actions Required
+
+| Hotspot | Action | Rating | Priority |
+|---|---|---|---|
+| H9 — SQL Injection | Replace all `DB::select()` string-concatenated queries with parameterized queries across 83 IVR controllers | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H10 — Unsafe extract() | Remove all 4,400 `extract()` calls; replace with explicit validated field access; add static analysis rule | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H12 — Hardcoded Secrets | Move 12 hardcoded API keys to `.env`; rotate all exposed keys immediately | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H4 — Business Logic Duplication | Consolidate 81 IVR controllers, 12 GodServices, 12 repositories into parameterized single classes | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H5 — Duplicate Code | Merge 133 LegacyPass2 pages, 229 legacy components, 8 legacyFormatters, 124 hooks into shared modules | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-critical\">Critical</span> |
+| H2 — Large Classes | Reduce IVR controller size by extracting 55 endpoint methods into Command pattern dispatch | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H11/C1 — Static Mutable State | Remove `$sharedRuntimeCache` from all 12 GodServices; use Cache facade if persistence needed | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| C2 — Unbounded Queries | Replace `->get()` with `->paginate()` or `->cursor()` across all IVR controllers | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| C3 — Blocking sleep() | Remove `sleep(1)` from all GodService methods; dispatch async jobs if sync is needed | <span class=\"rating rating-high-risk\">High Risk</span> | <span class=\"sev sev-high\">High</span> |
+| H1 — Cyclomatic Complexity | Extract query-builder logic from LoadsIvrModuleData to repository classes; apply Strategy pattern | <span class=\"rating rating-moderate\">Moderate</span> | <span class=\"sev sev-medium\">Medium</span> |
+
+## 2.6 Expected Outcomes
+
+- **Reduced security exposure:** Eliminating SQL injection, unsafe `extract()`, and hardcoded secrets removes the most critical vulnerability surface in the IVR layer.
+- **~80% reduction in code volume:** Consolidating duplicated controllers, services, components, and utilities could reduce the codebase from ~181,000 LOC to ~40,000 LOC, making reviews, audits, and onboarding dramatically faster.
+- **Single-point maintenance:** Bug fixes, security patches, and feature changes would need to be applied once instead of across 81+ files, reducing the risk of incomplete rollouts.
+- **Memory safety:** Removing static mutable state, unbounded queries, and blocking `sleep()` calls prepares the codebase for production-grade load handling and potential adoption of Laravel Octane.
+- **Improved static analysis coverage:** With deduplicated code, raising PHPStan from level 1 to level 6+ becomes feasible, catching type errors and null-safety issues that are currently hidden across thousands of generated files.","stop_reason":"end_turn","session_id":"904ae483-c619-49bc-818a-51cfac327691","total_cost_usd":2.9196744999999997,"usage":{"input_tokens":21,"cache_creation_input_tokens":122310,"cache_read_input_tokens":1457631,"output_tokens":38155,"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":122310,"ephemeral_5m_input_tokens":0},"inference_geo":"not_available","iterations":[{"input_tokens":1,"output_tokens":3032,"cache_read_input_tokens":112711,"cache_creation_input_tokens":11448,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":11448},"type":"message"}],"speed":"standard"},"modelUsage":{"claude-haiku-4-5-20251001":{"inputTokens":13684,"outputTokens":19,"cacheReadInputTokens":0,"cacheCreationInputTokens":0,"webSearchRequests":0,"costUSD":0.013779,"contextWindow":200000,"maxOutputTokens":32000},"claude-opus-4-6":{"inputTokens":21,"outputTokens":38155,"cacheReadInputTokens":1457631,"cacheCreationInputTokens":122310,"webSearchRequests":0,"costUSD":2.9058954999999997,"contextWindow":200000,"maxOutputTokens":64000}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","uuid":"25352f0e-e21f-4f51-98bd-1b3f96cb08f8"}
+
+---
+
+## 3. Backend Modernization Analysis
 
 > **Executive Summary**
 >
@@ -135,7 +201,7 @@
 
 ---
 
-## 3. Security Analysis
+## 4. Security Analysis
 
 > **Executive Summary**
 >
@@ -177,7 +243,7 @@ Report saved to `docs/discovery/06-security.md`. The orchestration UI will conve
 
 ---
 
-## 4. Performance & Sustainability Analysis
+## 5. Performance & Sustainability Analysis
 
 > **Executive Summary**
 >
