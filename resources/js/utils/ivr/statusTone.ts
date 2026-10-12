@@ -1,4 +1,4 @@
-export const STATUS_TONES: Readonly<Record<string, string>> = {
+const STATUS_TONE_MAP: Record<string, string> = {
     Normal: 'bg-green-100 text-green-800',
     Warning: 'bg-yellow-100 text-yellow-800',
     Critical: 'bg-red-100 text-red-800',
@@ -12,6 +12,6 @@ export const STATUS_TONES: Readonly<Record<string, string>> = {
     Callback: 'bg-blue-100 text-blue-800',
 }
 
-export function statusTone(value: string): string | null {
-    return STATUS_TONES[value] ?? null
+export function statusTone(value: string): string {
+    return STATUS_TONE_MAP[value] ?? 'bg-gray-100 text-gray-700'
 }

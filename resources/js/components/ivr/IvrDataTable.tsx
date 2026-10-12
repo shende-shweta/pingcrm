@@ -1,19 +1,13 @@
-import { ReactNode } from 'react'
 import StatusBadge from '@/components/ivr/StatusBadge'
-import { statusTone } from '@/utils/ivr/statusTone'
-import type { IvrColumn, IvrRow } from '@/types/ivr'
+import type { Column, Row } from '@/types/ivr'
 
-const DEFAULT_BADGE_KEYS: readonly string[] = ['status', 'disposition']
-
-interface Props {
-    columns: IvrColumn[]
-    rows: IvrRow[]
+interface IvrDataTableProps {
+    columns: Column[]
+    rows: Row[]
     viewType: string
-    emptyMessage: ReactNode
-    badgeKeys?: readonly string[]
 }
 
-export default function IvrDataTable({ columns, rows, viewType, emptyMessage, badgeKeys = DEFAULT_BADGE_KEYS }: Props) {
+function IvrDataTable({ columns, rows, viewType }: IvrDataTableProps) {
     return (
         <div className="mt-6 overflow-x-auto rounded bg-white shadow">
             <div className="border-b px-4 py-3 text-sm text-gray-500">
@@ -35,12 +29,12 @@ export default function IvrDataTable({ columns, rows, viewType, emptyMessage, ba
                         <tr key={row.id ?? idx} className="border-t hover:bg-gray-50">
                             {columns.map((col) => {
                                 const val = row[col.key]
-                                const text = val === undefined || val === null ? '—' : String(val)
-                                const showBadge = badgeKeys.includes(col.key) && statusTone(text) !== null
+                                const text = val === undefined || val === null ? '\u2014' : String(val)
+                                const isBadgeCol = col.key === 'status' || col.key === 'disposition'
 
                                 return (
                                     <td key={col.key} className="px-4 py-3">
-                                        {showBadge ? <StatusBadge value={text} /> : text}
+                                        {isBadgeCol ? <StatusBadge value={text} /> : text}
                                     </td>
                                 )
                             })}
@@ -49,7 +43,8 @@ export default function IvrDataTable({ columns, rows, viewType, emptyMessage, ba
                     {rows.length === 0 && (
                         <tr>
                             <td colSpan={columns.length} className="px-4 py-10 text-center text-gray-500">
-                                {emptyMessage}
+                                No records found. Run{' '}
+                                <code className="text-xs">php artisan db:seed --class=Database\\Seeders\\IvrModuleSampleSeeder</code>
                             </td>
                         </tr>
                     )}
@@ -58,3 +53,5 @@ export default function IvrDataTable({ columns, rows, viewType, emptyMessage, ba
         </div>
     )
 }
+
+export default IvrDataTable

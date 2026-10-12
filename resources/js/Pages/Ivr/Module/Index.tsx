@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { authenticatedLayout } from '@/layouts/authenticatedLayout'
 import IvrDataTable from '@/components/ivr/IvrDataTable'
 import IvrSearchForm from '@/components/ivr/IvrSearchForm'
-import type { IvrColumn, IvrModuleTab, IvrRow } from '@/types/ivr'
+import type { Column, ModuleTab, Row } from '@/types/ivr'
 
 function buildModuleQuery(moduleSlug: string, q: string, organizationId: string) {
     const params: Record<string, string> = { module: moduleSlug }
@@ -25,13 +25,13 @@ function IvrModulesIndex({
 }: {
     moduleSlug: string
     moduleKey: string
-    moduleTabs: IvrModuleTab[]
+    moduleTabs: ModuleTab[]
     title: string
     description: string
     viewType: string
     filters: { q: string; organization_id?: string | number | null }
-    columns: IvrColumn[]
-    rows: IvrRow[]
+    columns: Column[]
+    rows: Row[]
     accountName: string
 }) {
     const [search, setSearch] = useState(filters.q ?? '')
@@ -50,18 +50,11 @@ function IvrModulesIndex({
         })
     }
 
-    const emptyMessage = (
-        <>
-            No records found. Run{' '}
-            <code className="text-xs">php artisan db:seed --class=Database\\Seeders\\IvrModuleSampleSeeder</code>
-        </>
-    )
-
     return (
         <div>
-            <Head title={`Modules · ${title}`} />
+            <Head title={`Modules \u00b7 ${title}`} />
             <h1 className="text-3xl font-bold">Modules</h1>
-            <p className="mt-1 text-sm text-gray-500">{accountName} · select a module to view live configuration and operational data</p>
+            <p className="mt-1 text-sm text-gray-500">{accountName} \u00b7 select a module to view live configuration and operational data</p>
 
             <div className="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {moduleTabs.map((tab) => {
@@ -88,19 +81,14 @@ function IvrModulesIndex({
                 <IvrSearchForm
                     value={search}
                     onChange={setSearch}
-                    onSubmit={() => visitModule(moduleSlug, search)}
+                    onSearch={() => visitModule(moduleSlug, search)}
                     onClear={() => {
                         setSearch('')
                         visitModule(moduleSlug, '')
                     }}
                 />
 
-                <IvrDataTable
-                    columns={columns}
-                    rows={rows}
-                    viewType={viewType}
-                    emptyMessage={emptyMessage}
-                />
+                <IvrDataTable columns={columns} rows={rows} viewType={viewType} />
             </div>
         </div>
     )

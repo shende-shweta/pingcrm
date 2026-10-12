@@ -73,7 +73,7 @@ const RELOAD_KEYS = [
 ] as const
 
 function formatDuration(seconds: number) {
-    if (seconds <= 0) return '—'
+    if (seconds <= 0) return '\u2014'
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
     return `${m}:${String(s).padStart(2, '0')}`
@@ -174,11 +174,11 @@ function IvrHub({
                 <div>
                     <h1 className="text-3xl font-bold">IVR Enterprise Platform</h1>
                     <p className="mt-1 text-sm text-gray-500">
-                        {accountName} · scoped to your CRM account
+                        {accountName} \u00b7 scoped to your CRM account
                         {filters.organization_id && organizationOptions.length > 0 && (
                             <>
                                 {' '}
-                                · Organization:{' '}
+                                \u00b7 Organization:{' '}
                                 <span className="font-medium text-gray-700">
                                     {organizationOptions.find((o) => String(o.id) === String(filters.organization_id))?.name ??
                                         'Selected'}
@@ -186,8 +186,8 @@ function IvrHub({
                             </>
                         )}
                         {' '}
-                        · Last updated {new Date(refreshedAt).toLocaleTimeString()}
-                        {loading && <span className="ml-2 text-indigo-600">Refreshing…</span>}
+                        \u00b7 Last updated {new Date(refreshedAt).toLocaleTimeString()}
+                        {loading && <span className="ml-2 text-indigo-600">Refreshing\u2026</span>}
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -261,7 +261,7 @@ function IvrHub({
                     <input
                         type="search"
                         className="form-input mt-1 w-full"
-                        placeholder="416, C-88421…"
+                        placeholder="416, C-88421\u2026"
                         value={localFilters.search ?? ''}
                         onChange={(e) => setLocalFilters((f) => ({ ...f, search: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && applyFilters(localFilters)}
@@ -398,7 +398,7 @@ function IvrHub({
                                     onClick={() =>
                                         applyFilters({
                                             ...localFilters,
-                                            disposition: call.disposition === '—' ? '' : call.disposition,
+                                            disposition: call.disposition === '\u2014' ? '' : call.disposition,
                                         })
                                     }
                                 >

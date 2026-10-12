@@ -1,25 +1,16 @@
-import { FormEvent, ReactNode } from 'react'
+import { FormEvent } from 'react'
 
-interface Props {
+interface IvrSearchFormProps {
     value: string
     onChange: (value: string) => void
-    onSubmit: () => void
+    onSearch: () => void
     onClear: () => void
-    placeholder?: string
-    children?: ReactNode
 }
 
-export default function IvrSearchForm({
-    value,
-    onChange,
-    onSubmit,
-    onClear,
-    placeholder = 'Name, caller, extension…',
-    children,
-}: Props) {
-    function handleSubmit(e: FormEvent) {
+function IvrSearchForm({ value, onChange, onSearch, onClear }: IvrSearchFormProps) {
+    const handleSubmit = (e: FormEvent) => {
         e.preventDefault()
-        onSubmit()
+        onSearch()
     }
 
     return (
@@ -29,7 +20,7 @@ export default function IvrSearchForm({
                 <input
                     type="search"
                     className="form-input mt-1 w-full"
-                    placeholder={placeholder}
+                    placeholder="Name, caller, extension\u2026"
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                 />
@@ -44,7 +35,8 @@ export default function IvrSearchForm({
             >
                 Clear
             </button>
-            {children}
         </form>
     )
 }
+
+export default IvrSearchForm
