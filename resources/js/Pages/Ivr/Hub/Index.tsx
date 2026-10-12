@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { authenticatedLayout } from '@/layouts/authenticatedLayout'
 import { DonutChart, SimpleBarChart, StackedAreaChart } from '@/components/ivr/IvrHubCharts'
+import StatusBadge from '@/components/ivr/StatusBadge'
 
 interface Stats {
     active_calls: number
@@ -76,23 +77,6 @@ function formatDuration(seconds: number) {
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
     return `${m}:${String(s).padStart(2, '0')}`
-}
-
-function statusBadge(status: string) {
-    const map: Record<string, string> = {
-        Normal: 'bg-green-100 text-green-800',
-        Warning: 'bg-yellow-100 text-yellow-800',
-        Critical: 'bg-red-100 text-red-800',
-        Available: 'bg-green-100 text-green-800',
-        'On Call': 'bg-indigo-100 text-indigo-800',
-        'Wrap-up': 'bg-gray-100 text-gray-800',
-        Resolved: 'bg-green-100 text-green-800',
-        Sale: 'bg-indigo-100 text-indigo-800',
-        Escalated: 'bg-orange-100 text-orange-800',
-        Abandoned: 'bg-red-100 text-red-800',
-        Callback: 'bg-blue-100 text-blue-800',
-    }
-    return map[status] ?? 'bg-gray-100 text-gray-700'
 }
 
 function buildQuery(filters: Filters) {
@@ -374,7 +358,7 @@ function IvrHub({
                                 <td className="px-4 py-3">{row.agents}</td>
                                 <td className="px-4 py-3">{row.sla_pct}%</td>
                                 <td className="px-4 py-3">
-                                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusBadge(row.status)}`}>{row.status}</span>
+                                    <StatusBadge value={row.status} />
                                 </td>
                             </tr>
                         ))}
@@ -425,7 +409,7 @@ function IvrHub({
                                     <td className="px-4 py-2">{call.agent}</td>
                                     <td className="px-4 py-2">{formatDuration(call.duration_sec)}</td>
                                     <td className="px-4 py-2">
-                                        <span className={`rounded px-2 py-0.5 text-xs ${statusBadge(call.disposition)}`}>{call.disposition}</span>
+                                        <StatusBadge value={call.disposition} />
                                     </td>
                                 </tr>
                             ))}
@@ -460,7 +444,7 @@ function IvrHub({
                                     <td className="px-4 py-2 font-medium">{agent.name}</td>
                                     <td className="px-4 py-2 font-mono text-xs">{agent.extension}</td>
                                     <td className="px-4 py-2">
-                                        <span className={`rounded px-2 py-0.5 text-xs ${statusBadge(agent.status)}`}>{agent.status}</span>
+                                        <StatusBadge value={agent.status} />
                                     </td>
                                     <td className="px-4 py-2 text-gray-600">{agent.queue}</td>
                                     <td className="px-4 py-2">{agent.calls_today}</td>
