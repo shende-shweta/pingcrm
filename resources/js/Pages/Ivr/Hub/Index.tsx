@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { authenticatedLayout } from '@/layouts/authenticatedLayout'
 import { DonutChart, SimpleBarChart, StackedAreaChart } from '@/components/ivr/IvrHubCharts'
+import StatusBadge from '@/components/ivr/StatusBadge'
 
 interface Stats {
     active_calls: number
@@ -72,27 +73,10 @@ const RELOAD_KEYS = [
 ] as const
 
 function formatDuration(seconds: number) {
-    if (seconds <= 0) return '—'
+    if (seconds <= 0) return '\u2014'
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
     return `${m}:${String(s).padStart(2, '0')}`
-}
-
-function statusBadge(status: string) {
-    const map: Record<string, string> = {
-        Normal: 'bg-green-100 text-green-800',
-        Warning: 'bg-yellow-100 text-yellow-800',
-        Critical: 'bg-red-100 text-red-800',
-        Available: 'bg-green-100 text-green-800',
-        'On Call': 'bg-indigo-100 text-indigo-800',
-        'Wrap-up': 'bg-gray-100 text-gray-800',
-        Resolved: 'bg-green-100 text-green-800',
-        Sale: 'bg-indigo-100 text-indigo-800',
-        Escalated: 'bg-orange-100 text-orange-800',
-        Abandoned: 'bg-red-100 text-red-800',
-        Callback: 'bg-blue-100 text-blue-800',
-    }
-    return map[status] ?? 'bg-gray-100 text-gray-700'
 }
 
 function buildQuery(filters: Filters) {
@@ -190,11 +174,11 @@ function IvrHub({
                 <div>
                     <h1 className="text-3xl font-bold">IVR Enterprise Platform</h1>
                     <p className="mt-1 text-sm text-gray-500">
-                        {accountName} · scoped to your CRM account
+                        {accountName} \u00b7 scoped to your CRM account
                         {filters.organization_id && organizationOptions.length > 0 && (
                             <>
                                 {' '}
-                                · Organization:{' '}
+                                \u00b7 Organization:{' '}
                                 <span className="font-medium text-gray-700">
                                     {organizationOptions.find((o) => String(o.id) === String(filters.organization_id))?.name ??
                                         'Selected'}
@@ -202,8 +186,8 @@ function IvrHub({
                             </>
                         )}
                         {' '}
-                        · Last updated {new Date(refreshedAt).toLocaleTimeString()}
-                        {loading && <span className="ml-2 text-indigo-600">Refreshing…</span>}
+                        \u00b7 Last updated {new Date(refreshedAt).toLocaleTimeString()}
+                        {loading && <span className="ml-2 text-indigo-600">Refreshing\u2026</span>}
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -277,7 +261,7 @@ function IvrHub({
                     <input
                         type="search"
                         className="form-input mt-1 w-full"
-                        placeholder="416, C-88421…"
+                        placeholder="416, C-88421\u2026"
                         value={localFilters.search ?? ''}
                         onChange={(e) => setLocalFilters((f) => ({ ...f, search: e.target.value }))}
                         onKeyDown={(e) => e.key === 'Enter' && applyFilters(localFilters)}
@@ -374,7 +358,7 @@ function IvrHub({
                                 <td className="px-4 py-3">{row.agents}</td>
                                 <td className="px-4 py-3">{row.sla_pct}%</td>
                                 <td className="px-4 py-3">
-                                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusBadge(row.status)}`}>{row.status}</span>
+                                    <StatusBadge value={row.status} />
                                 </td>
                             </tr>
                         ))}
@@ -414,7 +398,7 @@ function IvrHub({
                                     onClick={() =>
                                         applyFilters({
                                             ...localFilters,
-                                            disposition: call.disposition === '—' ? '' : call.disposition,
+                                            disposition: call.disposition === '\u2014' ? '' : call.disposition,
                                         })
                                     }
                                 >
@@ -425,7 +409,7 @@ function IvrHub({
                                     <td className="px-4 py-2">{call.agent}</td>
                                     <td className="px-4 py-2">{formatDuration(call.duration_sec)}</td>
                                     <td className="px-4 py-2">
-                                        <span className={`rounded px-2 py-0.5 text-xs ${statusBadge(call.disposition)}`}>{call.disposition}</span>
+                                        <StatusBadge value={call.disposition} />
                                     </td>
                                 </tr>
                             ))}
@@ -460,7 +444,7 @@ function IvrHub({
                                     <td className="px-4 py-2 font-medium">{agent.name}</td>
                                     <td className="px-4 py-2 font-mono text-xs">{agent.extension}</td>
                                     <td className="px-4 py-2">
-                                        <span className={`rounded px-2 py-0.5 text-xs ${statusBadge(agent.status)}`}>{agent.status}</span>
+                                        <StatusBadge value={agent.status} />
                                     </td>
                                     <td className="px-4 py-2 text-gray-600">{agent.queue}</td>
                                     <td className="px-4 py-2">{agent.calls_today}</td>
