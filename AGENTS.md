@@ -17,7 +17,7 @@ Use these as templates, in this order:
 
 - Backend CRUD: `app/Http/Controllers/ContactsController.php`, `OrganizationsController.php`, `Auth/AuthenticatedSessionController.php` + `app/Http/Requests/Auth/LoginRequest.php`, models `Contact` / `Organization` (scopes such as `filter()` / `orderByName()`).
 - Backend IVR read models and tenancy: `Ivr/IvrHubController.php`, `Ivr/IvrModuleController.php`, `Ivr/Concerns/LoadsIvrModuleData.php`, `app/Support/IvrAccountContext.php`.
-- Frontend pages: `resources/js/Pages/Contacts/*`, `Pages/Organizations/*`, `Pages/Ivr/Module/Show.tsx`, `Pages/Ivr/Hub/Index.tsx` (intervals with cleanup, `router.reload({ only })`), shared UI in `resources/js/Shared/`, shared prop types in `resources/js/types/index.ts`.
+- Frontend pages: `resources/js/Pages/Contacts/*`, `Pages/Organizations/*`, `Pages/Ivr/Module/Index.tsx`, `Pages/Ivr/Hub/Index.tsx` (intervals with cleanup, `router.reload({ only })`), shared UI in `resources/js/Shared/`, shared prop types in `resources/js/types/index.ts`.
 - Tests: `tests/Feature/ContactsTest.php`, `tests/Feature/OrganizationsTest.php`.
 
 These templates are not defect-free. The IVR tier has no tests, large controllers, and SQLite-only `strftime` SQL, and `tsc` reports a `SharedPageProps` / `PageProps` mismatch. Check the current code before you mirror a pattern, and never copy a defect just because a reference does it.

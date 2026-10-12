@@ -16,7 +16,7 @@ Use this when reviewing any PR, and when doing or reviewing an IVR legacy-module
 - [ ] Every `Inertia::render('X/Y')` has a matching `resources/js/Pages/X/Y.tsx`, and a feature test asserts `->component('X/Y')`.
 - [ ] Every new page is reachable: there's a route, a controller render, and a link or menu entry (`Shared/MainMenu.tsx` or the `/ivr/modules` list) where relevant.
 - [ ] Every hard-coded URL or `router.*` target exists in `routes/web.php` (`php artisan route:list --path=ivr`).
-- [ ] Deleted legacy files really were unreachable: show the grep evidence (no importers in `resources/js`, no `Inertia::render` name in `app/`, no route reference). Remember that `IvrModuleController::SLUG_MAP` routes 18 slugs to `Pages/Ivr/Module/Show.tsx`, so check that a migrated module doesn't collide with or duplicate an existing `/ivr/{slug}` route.
+- [ ] Deleted legacy files really were unreachable: show the grep evidence (no importers in `resources/js`, no `Inertia::render` name in `app/`, no route reference). Remember that `/ivr/{slug}` (constrained to the 18 `IvrModuleController::SLUG_MAP` slugs) redirects to `/ivr/modules?module=<slug>`, which renders `Ivr/Module/Index`. A migrated module's new `/ivr/<slug>/...` routes must not collide with that route, and the slug must be removed from `SLUG_MAP`/`MODULE_META` when the module gets its own pages.
 - [ ] The migrated module's lines were removed from `routes/generated/ivr_legacy_api.php`, along with its controllers, god service, repository and legacy frontend files. No half-migrated module is left with both paths live.
 
 ## 3. Legacy parity
